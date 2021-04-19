@@ -140,6 +140,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="Algebrizer.cpp" />
+    <ClCompile Include="ComputerVisitor.cpp" />
     <ClCompile Include="ConditionOptimizer.cpp" />
     <ClCompile Include="DataFile.cpp" />
     <ClCompile Include="DataSequence.cpp" />
@@ -158,6 +159,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Common.h" />
+    <ClInclude Include="ComputerVisitor.h" />
     <ClInclude Include="DataFile.h" />
     <ClInclude Include="DataSequence.h" />
     <ClInclude Include="DataType.h" />
