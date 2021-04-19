@@ -10,7 +10,7 @@
 
 struct RecordPtr {
     Schema type;
-    const char* record;
+    ValueArray* record;
     RecordPtr() : record(NULL) {}
     RecordPtr(const Schema& type) : record(NULL), type(type) {}
 };
@@ -18,9 +18,7 @@ struct RecordPtr {
 class DataSequence {
 protected:
     RecordPtr record;
-    DataSequence() {
-        cout << "!!!" << endl;
-    }
+    DataSequence() {}
     DataSequence(const Schema& type): record(type) {}
 public:
     virtual ~DataSequence() {}
@@ -39,6 +37,7 @@ class TableFullScanDS : public DataSequence {
 private:
     DataFile& data;
     DataFile::const_iterator iter;
+    unique_ptr<ValueArray> recordData;
 public:
     TableFullScanDS(const Schema& type, DataFile& data);
     virtual void reset();
@@ -53,6 +52,7 @@ private:
     IndexFile::const_iterator iter;
     ValueArray from, to;
     bool incFrom, incTo;
+    unique_ptr<ValueArray> recordData;
 public:
     TableIndexScanDS(const Schema& type, DataFile& data, IndexFile& index,
         ValueArray from, ValueArray to, bool incFrom, bool incTo);
@@ -64,16 +64,31 @@ public:
 class ProjectorDS : public DataSequence {
 private:
     DataSequence* source;
-    struct CopyInfo {
-        int from, nullFrom, to, nullTo, size;
-    };
-    vector<CopyInfo> copyInfo;
-    vector<char> buffer;
+    vector<uint16_t> columns;
+    unique_ptr<ValueArray> recordData;
     void update();
 public:
     ProjectorDS(const Schema& type, 
         DataSequence* source, 
         vector<uint16_t> columns);
+    virtual void reset();
+    virtual void advance();
+    virtual bool hasEnded() const;
+};
+
+struct QScalarNode;
+class ComputerVisitor;
+class FuncProjectorDS : public DataSequence {
+private:
+    DataSequence* source;
+    vector<unique_ptr<QScalarNode>> funcs;
+    unique_ptr<ValueArray> recordData;
+    unique_ptr<ComputerVisitor> visitor;
+    void update();
+public:
+    FuncProjectorDS(const Schema& type,
+        DataSequence* source, 
+        vector<unique_ptr<QScalarNode>> funcs);
     virtual void reset();
     virtual void advance();
     virtual bool hasEnded() const;
@@ -110,7 +125,7 @@ public:
 
 class ConstTableDS : public DataSequence {
 private:
-    vector<vector<char>> data;
+    vector<ValueArray> values;
     int index;
     void update();
 public:

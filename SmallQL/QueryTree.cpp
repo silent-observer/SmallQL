@@ -8,6 +8,15 @@ public:
     virtual void visitConstScalarQNode(ConstScalarQNode& n) {
         cout << n.data;
     }
+    virtual void visitFuncQNode(FuncQNode& n) {
+        cout << n.name << "(";
+        for (unsigned int i = 0; i < n.children.size(); i++) {
+            n.children[i]->accept(this);
+            if (i != n.children.size() - 1)
+                cout << ", ";
+        }
+        cout << ")";
+    }
 };
 
 class ConditionPrinter : public QConditionNode::Visitor {
@@ -51,10 +60,11 @@ public:
 class TablePrinter : public QTableNode::Visitor {
 private:
     ConditionPrinter* condPrinter;
+    ScalarPrinter* scalarPrinter;
     int level;
 public:
-    TablePrinter(ConditionPrinter* condPrinter)
-        : condPrinter(condPrinter) {}
+    TablePrinter(ConditionPrinter* condPrinter, ScalarPrinter* scalarPrinter)
+        : condPrinter(condPrinter), scalarPrinter(scalarPrinter) {}
     virtual void visitReadTableQNode(ReadTableQNode& n) {
         cout << indent() << "FullScan[" << endl;
         cout << indent1() << "tableId = " << n.tableId << endl;
@@ -76,6 +86,22 @@ public:
     virtual void visitProjectionQNode(ProjectionQNode& n) {
         cout << indent1() << "Projection[" << endl;
         cout << indent1() << "Type: " << n.type << endl;
+        cout << indent() << "] <-" << endl;
+        level++;
+        n.source->accept(this);
+        level--;
+    }
+    virtual void visitFuncProjectionQNode(FuncProjectionQNode& n) {
+        cout << indent1() << "FuncProjection[" << endl;
+        cout << indent1() << "Type: " << n.type << endl;
+        cout << indent1() << "Funcs: " << endl;
+        level++;
+        for (auto& f : n.funcs) {
+            cout << indent1();
+            f->accept(scalarPrinter);
+            cout << endl;
+        }
+        level--;
         cout << indent() << "] <-" << endl;
         level++;
         n.source->accept(this);
@@ -123,6 +149,6 @@ public:
 void print(QTablePtr& n) {
     auto scalar = make_unique<ScalarPrinter>();
     auto cond = make_unique<ConditionPrinter>(scalar.get());
-    auto table = make_unique<TablePrinter>(cond.get());
+    auto table = make_unique<TablePrinter>(cond.get(), scalar.get());
     n->accept(table.get());
 }

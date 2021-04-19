@@ -189,7 +189,7 @@ int main()
                     }
             }
         }
-        catch (ParserException e) {
+        catch (const SQLException& e) {
             cout << e.what() << endl;
         }
         cout << endl;

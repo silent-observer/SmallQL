@@ -3,6 +3,7 @@
 #include <iostream>
 #include <algorithm>
 #include <assert.h>
+#include <sstream>
 
 Value::~Value() {
     if (type == ValueType::String)
@@ -49,11 +50,26 @@ Value& Value::operator=(const Value& v) {
         break;
     }
 }
+unique_ptr<DataType> Value::defaultType() const {
+    switch (type)
+    {
+    case ValueType::Null:
+    case ValueType::MaxVal:
+    case ValueType::MinVal:
+        return make_unique<NullType>();
+    case ValueType::Integer:
+        return make_unique<IntType>();
+    case ValueType::String:
+        return make_unique<VarCharType>(stringVal.size());
+    default:
+        break;
+    }
+}
 ostream& operator<<(ostream& os, const Value& v) {
     switch (v.type)
     {
     case ValueType::Null:
-        os << "Null";
+        os << "NULL";
         break;
     case ValueType::MaxVal:
         os << "MAX";
@@ -71,6 +87,11 @@ ostream& operator<<(ostream& os, const Value& v) {
         break;
     }
     return os;
+}
+string Value::toString() const {
+    stringstream ss;
+    ss << *this;
+    return ss.str();
 }
 ostream& operator<<(ostream& os, const ValueArray& values) {
     os << "[";
@@ -119,6 +140,17 @@ int compareValue(const Value& a, const Value& b) {
     case ValueType::String: 
         return a.stringVal.compare(b.stringVal);
     }
+}
+
+bool NullType::checkVal(Value val) const {
+    return val.type == ValueType::Null;
+}
+void NullType::encode(Value val, char* out) const {}
+Value NullType::decode(const char* data) const {
+    return Value(ValueType::Null);
+}
+void NullType::print(ostream& os) const {
+    os << "NULL";
 }
 
 bool ByteType::checkVal(Value val) const {
@@ -187,6 +219,14 @@ Value VarCharType::decode(const char* data) const {
 }
 void VarCharType::print(ostream& os) const {
     os << "VARCHAR(" << maxSize << ")";
+}
+
+int Schema::compare(ValueArray a, ValueArray b) const {
+    for (int i = 0; i < columns.size(); i++) {
+        int x = compareValue(a[i], b[i]);
+        if (x != 0) return x;
+    }
+    return 0;
 }
 
 int Schema::compare(const char* a, ValueArray b) const {
@@ -353,4 +393,14 @@ shared_ptr<DataType> parseDataType(string str) {    string s = str;
     else {
         return NULL;
     }
+}
+
+shared_ptr<DataType> typeCheckFunc(string name, vector<shared_ptr<DataType>> inputs) {
+    if (name == "+" || name == "-" || name == "*" || name == "/") {
+        for (auto& t : inputs)
+            if (!is<IntType>(t))
+                throw TypeException("Invalid type in " + name + " expression");
+        return make_shared<IntType>();
+    }
+    return nullptr;
 }

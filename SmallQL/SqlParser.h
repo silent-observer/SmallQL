@@ -1,4 +1,5 @@
 #pragma once
+#include "Common.h"
 #include "SqlAst.h"
 #include <string>
 
@@ -19,7 +20,10 @@ enum class TokenType {
     Greater,
     GreaterOrEquals,
     Semicolon,
+    Plus,
+    Minus,
     Asterisk,
+    Slash,
     StringLiteral,
     NumberLiteral
 };
@@ -42,7 +46,7 @@ struct Token {
     }
 };
 
-class ParserException : public std::exception
+class ParserException : public SQLException
 {
 private:
     int pos;
@@ -109,6 +113,9 @@ private:
     unique_ptr<InsertStmtNode> parseInsert();
     unique_ptr<ColumnNameExpr> parseColumnNameExpr();
     unique_ptr<ConstExpr> parseConstExpr();
+    unique_ptr<ExprNode> parseAtomicExpr();
+    unique_ptr<ExprNode> parseMultExpr();
+    unique_ptr<ExprNode> parseAddExpr();
     unique_ptr<ExprNode> parseExpr();
     unique_ptr<ConditionNode> parseCondition();
     unique_ptr<ConditionNode> parseAndCondition();

@@ -91,6 +91,15 @@ struct ConstExpr : public ExprNode {
         const Schema& type) const;
 };
 
+struct FuncExpr : public ExprNode {
+    string name;
+    vector<unique_ptr<ExprNode>> children;
+    virtual void prettyPrint(ostream& s, int level) const;
+    virtual QScalarPtr algebrizeWithContext(
+        const SystemInfoManager& sysMan,
+        const Schema& type) const;
+};
+
 struct InsertValuesNode : public InsertDataNode {
     vector<ValueArray> data;
     virtual void prettyPrint(ostream& s, int level) const;

@@ -22,7 +22,10 @@ QTablePtr SelectNode::algebrize(const SystemInfoManager& sysMan) {
     }
     if (!isStar) {
         auto projection = make_unique<ProjectionQNode>();
+        auto funcProjection = make_unique<FuncProjectionQNode>();
+        int funcId = source->type.columns.size();
         projection->type = Schema();
+        funcProjection->type = source->type;
         for (const auto& p : columns) {
             string alias = p.second;
             auto colExpr = p.first->algebrizeWithContext(sysMan, source->type);
@@ -32,8 +35,23 @@ QTablePtr SelectNode::algebrize(const SystemInfoManager& sysMan) {
                 scalar.name = alias;
                 projection->type.addColumn(scalar);
             }
+            else {
+                SchemaEntry scalar = colExpr->type;
+                funcProjection->type.addColumn(scalar);
+                funcProjection->funcs.push_back(move(colExpr));
+                scalar.name = alias;
+                projection->columns.push_back(funcId);
+                projection->type.addColumn(scalar);
+                funcId++;
+            }
         }
-        projection->source = move(source);
+        if (funcProjection->funcs.size() > 0) {
+            funcProjection->source = move(source);
+            projection->source = move(funcProjection);
+        }
+        else {
+            projection->source = move(source);
+        }
         source = move(projection);
     }
     result->source = move(source);
@@ -47,6 +65,8 @@ QTablePtr SelectStmtNode::algebrize(const SystemInfoManager& sysMan) {
 
 QTablePtr TableName::algebrize(const SystemInfoManager& sysMan) {
     auto result = make_unique<ReadTableQNode>();
+    if (!sysMan.tableExists(name))
+        throw SemanticException("Table " + name + " doesn't exist!");
     result->tableId = sysMan._getTableId(name);
     result->type = sysMan._getTableSchema(name);
     return result;
@@ -63,13 +83,30 @@ QScalarPtr ColumnNameExpr::algebrizeWithContext(
             return result;
         }
     }
-    return NULL;
+    if (!sysMan.tableExists(name))
+        throw SemanticException("Column " + name + " doesn't exist!");
 }
 
 QScalarPtr ConstExpr::algebrizeWithContext(
         const SystemInfoManager& sysMan, const Schema& type) const {
     auto result = make_unique<ConstScalarQNode>();
     result->data = v;
+    result->type = schemaEntryNormal(v.toString(), v.defaultType());
+    return result;
+}
+
+QScalarPtr FuncExpr::algebrizeWithContext(
+        const SystemInfoManager& sysMan, const Schema& type) const {
+    auto result = make_unique<FuncQNode>();
+    result->name = name;
+    vector<shared_ptr<DataType>> inputs;
+    for (auto& child : children) {
+        result->children.push_back(child->algebrizeWithContext(sysMan, type));
+        inputs.push_back(result->children.back()->type.type);
+    }
+    auto dataType = typeCheckFunc(name, inputs);
+    string text = AstNode::prettyPrint();
+    result->type = schemaEntryNormal(text, dataType);
     return result;
 }
 

@@ -22,6 +22,7 @@ public:
     virtual void visitReadTableQNode(ReadTableQNode& n);
     virtual void visitReadTableIndexScanQNode(ReadTableIndexScanQNode& n);
     virtual void visitProjectionQNode(ProjectionQNode& n);
+    virtual void visitFuncProjectionQNode(FuncProjectionQNode& n);
     virtual void visitFilterQNode(FilterQNode& n);
     virtual void visitUnionQNode(UnionQNode& n);
     virtual void visitSelectorNode(SelectorNode& n);
@@ -56,6 +57,15 @@ void PreparerVisitor::visitProjectionQNode(ProjectionQNode& n) {
     uint32_t sourceId = lastResult;
     auto seq = make_unique<ProjectorDS>(
         n.type, exec->sequences[sourceId].get(), n.columns);
+    exec->sequences.push_back(move(seq));
+    lastResult = exec->sequences.size() - 1;
+}
+
+void PreparerVisitor::visitFuncProjectionQNode(FuncProjectionQNode& n) {
+    n.source->accept(this);
+    uint32_t sourceId = lastResult;
+    auto seq = make_unique<FuncProjectorDS>(
+        n.type, exec->sequences[sourceId].get(), move(n.funcs));
     exec->sequences.push_back(move(seq));
     lastResult = exec->sequences.size() - 1;
 }

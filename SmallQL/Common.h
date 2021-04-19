@@ -43,3 +43,5 @@ template<typename To, typename From>
 static inline bool is(const shared_ptr<From>& x) {
     return dynamic_cast<To*>(x.get()) != nullptr;
 }
+
+class SQLException : public std::exception {};

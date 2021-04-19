@@ -34,7 +34,10 @@ void Lexer::advance() {
     CHECK('(', TokenType::LParen)
     CHECK(')', TokenType::RParen)
     CHECK(';', TokenType::Semicolon)
+    CHECK('+', TokenType::Plus)
+    CHECK('-', TokenType::Minus)
     CHECK('*', TokenType::Asterisk)
+    CHECK('/', TokenType::Slash)
     CHECK('=', TokenType::Equals)
     else if (c == '!' && source[pos + 1] == '=') {
         t = Token(TokenType::NotEquals, "!=", pos);

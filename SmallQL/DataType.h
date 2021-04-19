@@ -4,6 +4,7 @@
 #include <vector>
 #include <string>
 #include <memory>
+#include "Common.h"
 
 using namespace std;
 
@@ -15,6 +16,7 @@ enum class ValueType {
     MaxVal
 };
 
+class DataType;
 struct Value {
     ValueType type;
     union {
@@ -32,6 +34,8 @@ struct Value {
     Value(string stringVal);
     friend ostream& operator<<(ostream& os, const Value& v);
     friend int compareValue(const Value& a, const Value& b);
+    unique_ptr<DataType> defaultType() const;
+    virtual string toString() const;
 };
 using ValueArray = vector<Value>;
 
@@ -51,6 +55,15 @@ public:
     virtual Value decode(const char* data) const = 0;
     virtual void print(ostream& os) const = 0;
     friend ostream& operator<<(ostream& os, const DataType& t);
+};
+
+class NullType : public DataType {
+public:
+    NullType() : DataType(0, 0) {}
+    virtual bool checkVal(Value val) const;
+    virtual void encode(Value val, char* out) const;
+    virtual Value decode(const char* data) const;
+    virtual void print(ostream& os) const;
 };
 
 class FixedLengthType : public DataType {
@@ -96,6 +109,7 @@ struct Schema {
     inline ValueArray decode(const vector<char>& data) const {
         return decode(data.data());
     }
+    int compare(ValueArray a, ValueArray b) const;
     int compare(const char* a, ValueArray b) const;
     inline int compare(ValueArray a, const char* b) const {
         return -compare(b, a);
@@ -157,4 +171,18 @@ static inline int cmp(uint64_t x, uint64_t y) {
     return x > y ? 1 : x < y ? -1 : 0;
 }
 
+class TypeException : public SQLException
+{
+private:
+    string message;
+public:
+    TypeException(string message)
+        : message("Type Exception: " + message) {}
+    const char* what() const throw ()
+    {
+        return message.c_str();
+    }
+};
+
 shared_ptr<DataType> parseDataType(string str);
+shared_ptr<DataType> typeCheckFunc(string name, vector<shared_ptr<DataType>> inputs);

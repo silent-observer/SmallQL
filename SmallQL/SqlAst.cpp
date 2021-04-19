@@ -54,6 +54,17 @@ void ConstExpr::prettyPrint(ostream& s, int level) const
     s << v;
 }
 
+void FuncExpr::prettyPrint(ostream& s, int level) const
+{
+    s << name << "(";
+    for (unsigned int i = 0; i < children.size(); i++) {
+        children[i]->prettyPrint(s, level);
+        if (i != children.size() - 1)
+            s << ", ";
+    }
+    s << ")";
+}
+
 void AndConditionNode::prettyPrint(ostream& s, int level) const
 {
     s << "(";

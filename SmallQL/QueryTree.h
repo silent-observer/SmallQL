@@ -4,6 +4,7 @@
 #include <memory>
 #include "DataType.h"
 #include "Executor.h"
+#include "Common.h"
 
 using namespace std;
 
@@ -35,12 +36,14 @@ using QCondPtr = unique_ptr<QConditionNode>;
 struct ReadTableQNode;
 struct ReadTableIndexScanQNode;
 struct ProjectionQNode;
+struct FuncProjectionQNode;
 struct FilterQNode;
 struct UnionQNode;
 struct SelectorNode;
 struct InserterNode;
 struct ConstDataNode;
 struct ColumnQNode;
+struct FuncQNode;
 struct ConstScalarQNode;
 struct AndConditionQNode;
 struct OrConditionQNode;
@@ -52,6 +55,7 @@ public:
     virtual void visitReadTableQNode(ReadTableQNode& n) = 0;
     virtual void visitReadTableIndexScanQNode(ReadTableIndexScanQNode& n) = 0;
     virtual void visitProjectionQNode(ProjectionQNode& n) = 0;
+    virtual void visitFuncProjectionQNode(FuncProjectionQNode& n) = 0;
     virtual void visitFilterQNode(FilterQNode& n) = 0;
     virtual void visitUnionQNode(UnionQNode& n) = 0;
     virtual void visitSelectorNode(SelectorNode& n) = 0;
@@ -62,6 +66,7 @@ class QScalarNode::Visitor {
 public:
     virtual void visitColumnQNode(ColumnQNode& n) = 0;
     virtual void visitConstScalarQNode(ConstScalarQNode& n) = 0;
+    virtual void visitFuncQNode(FuncQNode& n) = 0;
 };
 class QConditionNode::Visitor {
 public:
@@ -98,6 +103,15 @@ struct ProjectionQNode : public QTableNode {
         v->visitProjectionQNode(*this);
     }
 };
+struct FuncProjectionQNode : public QTableNode {
+    vector<QScalarPtr> funcs;
+    QTablePtr source;
+    FuncProjectionQNode() {}
+    virtual void accept(Visitor* v) {
+        v->visitFuncProjectionQNode(*this);
+    }
+};
+
 struct AndConditionQNode : public QConditionNode {
     vector<QCondPtr> children;
     AndConditionQNode() {}
@@ -180,6 +194,14 @@ struct ConstScalarQNode : public QScalarNode {
     }
 };
 
+struct FuncQNode : public QScalarNode {
+    string name;
+    vector<QScalarPtr> children;
+    virtual void accept(Visitor* v) {
+        v->visitFuncQNode(*this);
+    }
+};
+
 
 class QTableNode::RecursiveVisitor : public QTableNode::Visitor {
 protected:
@@ -189,6 +211,12 @@ public:
     virtual void visitReadTableQNode(ReadTableQNode& n) {}
     virtual void visitReadTableIndexScanQNode(ReadTableIndexScanQNode& n) {}
     virtual void visitProjectionQNode(ProjectionQNode& n) {
+        auto oldQPtr = qPtr;
+        qPtr = &n.source;
+        n.source->accept(this);
+        qPtr = oldQPtr;
+    }
+    virtual void visitFuncProjectionQNode(FuncProjectionQNode& n) {
         auto oldQPtr = qPtr;
         qPtr = &n.source;
         n.source->accept(this);
@@ -226,6 +254,10 @@ class QScalarNode::RecursiveVisitor : public QScalarNode::Visitor {
 public:
     virtual void visitColumnQNode(ColumnQNode& n) {};
     virtual void visitConstScalarQNode(ConstScalarQNode& n) {};
+    virtual void visitFuncQNode(FuncQNode& n) {
+        for (auto& child : n.children)
+            child->accept(this);
+    };
 };
 class QConditionNode::RecursiveVisitor : public QConditionNode::Visitor {
 public:
@@ -238,6 +270,19 @@ public:
             child->accept(this);
     };
     virtual void visitCompareConditionQNode(CompareConditionQNode& n) {};
+};
+
+class SemanticException : public SQLException
+{
+private:
+    string message;
+public:
+    SemanticException(string message)
+        : message("Semantic Exception: " + message) {}
+    const char* what() const throw ()
+    {
+        return message.c_str();
+    }
 };
 
 void print(QTablePtr& n);

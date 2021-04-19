@@ -150,12 +150,55 @@ unique_ptr<ConstExpr> Parser::parseConstExpr() {
     return result;
 }
 
-unique_ptr<ExprNode> Parser::parseExpr() {
-    if (l.get().type == TokenType::Id) {
+unique_ptr<ExprNode> Parser::parseAtomicExpr() {
+    if (l.get().type == TokenType::LParen) {
+        l.pop();
+        auto result = parseExpr();
+        check(TokenType::RParen, "Expected right parenthesis");
+        l.pop();
+        return result;
+    }
+    else if (l.get().type == TokenType::Id) {
         return parseColumnNameExpr();
     }
     else
         return parseConstExpr();
+}
+
+unique_ptr<ExprNode> Parser::parseMultExpr() {
+    auto result = parseAtomicExpr();
+    while (l.get().type == TokenType::Asterisk || l.get().type == TokenType::Slash) {
+        auto n = l.createPtr<FuncExpr>();
+        n->name = l.get().type == TokenType::Asterisk ? "*" : "/";
+        n->children.push_back(move(result));
+        auto currentType = l.get().type;
+        while (l.get().type == currentType) {
+            l.pop();
+            n->children.push_back(parseAtomicExpr());
+        }
+        result = move(n);
+    }
+    return result;
+}
+
+unique_ptr<ExprNode> Parser::parseAddExpr() {
+    auto result = parseMultExpr();
+    while (l.get().type == TokenType::Plus || l.get().type == TokenType::Minus) {
+        auto n = l.createPtr<FuncExpr>();
+        n->name = l.get().type == TokenType::Plus ? "+" : "-";
+        n->children.push_back(move(result));
+        auto currentType = l.get().type;
+        while (l.get().type == currentType) {
+            l.pop();
+            n->children.push_back(parseMultExpr());
+        }
+        result = move(n);
+    }
+    return result;
+}
+
+unique_ptr<ExprNode> Parser::parseExpr() {
+    return parseAddExpr();
 }
 
 unique_ptr<ConditionNode> Parser::parseCondition() {
