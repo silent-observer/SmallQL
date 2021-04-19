@@ -148,6 +148,14 @@ void ComputerVisitor::visitFuncQNode(FuncQNode& n) {
             v.intVal /= result.intVal;
         }
         result = v;
+    } else if (n.name == "CONCAT") {
+        n.children[0]->accept(this);
+        Value v = result;
+        for (int i = 1; i < n.children.size(); i++) {
+            n.children[i]->accept(this);
+            v.stringVal += result.stringVal;
+        }
+        result = v;
     }
 }
 

@@ -9,6 +9,7 @@ enum class TokenType {
     EndOfString,
     Keyword,
     Type,
+    FunctionName,
     Id,
     LParen,
     RParen,
@@ -113,6 +114,7 @@ private:
     unique_ptr<InsertStmtNode> parseInsert();
     unique_ptr<ColumnNameExpr> parseColumnNameExpr();
     unique_ptr<ConstExpr> parseConstExpr();
+    unique_ptr<FuncExpr> parseFuncExpr();
     unique_ptr<ExprNode> parseAtomicExpr();
     unique_ptr<ExprNode> parseMultExpr();
     unique_ptr<ExprNode> parseAddExpr();

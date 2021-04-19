@@ -402,5 +402,11 @@ shared_ptr<DataType> typeCheckFunc(string name, vector<shared_ptr<DataType>> inp
                 throw TypeException("Invalid type in " + name + " expression");
         return make_shared<IntType>();
     }
+    else if (name == "CONCAT") {
+        for (auto& t : inputs)
+            if (!is<VarCharType>(t))
+                throw TypeException("Invalid type in CONCAT expression");
+        return make_shared<IntType>();
+    }
     return nullptr;
 }

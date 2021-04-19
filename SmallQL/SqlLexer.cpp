@@ -85,6 +85,10 @@ const static set<string> TYPE_SET = {
     "INT", "INTEGER", "BYTE", "TINYINT", "SMALLINT", "VARCHAR"
 };
 
+const static set<string> FUNCTION_NAME_SET = {
+    "CONCAT"
+};
+
 const regex TYPE_REGEX(R"((INTEGER|INT|BYTE|TINYINT|SMALLINT|VARCHAR\([0-9]+\)).*)",
     regex_constants::ECMAScript | regex_constants::icase);
 
@@ -107,6 +111,8 @@ void Lexer::lexWord() {
     }
     else if (KEYWORDS_SET.count(text) != 0)
         t = Token(TokenType::Keyword, text, pos);
+    else if (FUNCTION_NAME_SET.count(text) != 0)
+        t = Token(TokenType::FunctionName, text, pos);
     else
         t = Token(TokenType::Id, text, pos);
     pos = endIndex;

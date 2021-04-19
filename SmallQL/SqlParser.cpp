@@ -150,6 +150,26 @@ unique_ptr<ConstExpr> Parser::parseConstExpr() {
     return result;
 }
 
+unique_ptr<FuncExpr> Parser::parseFuncExpr() {
+    check(TokenType::FunctionName, "Expected function name");
+    auto result = l.createPtr<FuncExpr>();
+    result->name = l.pop().text;
+
+    check(TokenType::LParen, "Expected left parenthesis");
+    l.advance();
+    bool isFirst = true;
+    do {
+        if (!isFirst)
+            l.advance();
+        result->children.push_back(parseExpr());
+        isFirst = false;
+    } while (l.get().type == TokenType::Comma);
+    check(TokenType::RParen, "Expected right parenthesis");
+    l.advance();
+
+    return result;
+}
+
 unique_ptr<ExprNode> Parser::parseAtomicExpr() {
     if (l.get().type == TokenType::LParen) {
         l.pop();
@@ -160,6 +180,9 @@ unique_ptr<ExprNode> Parser::parseAtomicExpr() {
     }
     else if (l.get().type == TokenType::Id) {
         return parseColumnNameExpr();
+    }
+    else if (l.get().type == TokenType::FunctionName) {
+        return parseFuncExpr();
     }
     else
         return parseConstExpr();
