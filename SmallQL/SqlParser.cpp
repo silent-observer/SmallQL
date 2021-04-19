@@ -119,8 +119,11 @@ unique_ptr<InsertValuesNode> Parser::parseInsertValues() {
 }
 
 Value Parser::parseValue() {
-    if (l.get().type == TokenType::NumberLiteral) {
-        return Value(l.pop().intVal);
+    if (l.get().type == TokenType::NumberIntLiteral) {
+        return Value((int64_t)l.pop().intVal);
+    }
+    else if (l.get().type == TokenType::NumberDoubleLiteral) {
+        return Value(l.pop().doubleVal);
     }
     else if (l.get().type == TokenType::StringLiteral) {
         string s = l.pop().text;

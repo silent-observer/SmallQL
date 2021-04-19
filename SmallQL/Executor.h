@@ -16,7 +16,7 @@ enum class QueryType {
 
 class Executor {
 public:
-    DataFile& addDataFile(uint16_t id);
+    DataFile& addDataFile(uint16_t id, const Schema& schema);
     IndexFile& addIndexFile(uint16_t tableId, uint16_t indexId, const Schema& keySchema);
     map<uint16_t, unique_ptr<DataFile>> dataFiles;
     map<pair<uint16_t, uint16_t>, unique_ptr<IndexFile>> indexFiles;

@@ -1,9 +1,9 @@
 #include "Executor.h"
 #include "QueryTree.h"
 
-DataFile& Executor::addDataFile(uint16_t id) {
+DataFile& Executor::addDataFile(uint16_t id, const Schema& schema) {
     if (dataFiles.count(id) == 0)
-        dataFiles.emplace(id, make_unique<DataFile>(id));
+        dataFiles.emplace(id, make_unique<DataFile>(id, schema.size));
     return *dataFiles[id];
 }
 IndexFile& Executor::addIndexFile(uint16_t tableId, uint16_t indexId, const Schema& keySchema) {
@@ -36,14 +36,14 @@ void Executor::prepare(QTablePtr tree) {
 }
 
 void PreparerVisitor::visitReadTableQNode(ReadTableQNode& n) {
-    DataFile& data = exec->addDataFile(n.tableId);
+    DataFile& data = exec->addDataFile(n.tableId, n.type);
     auto seq = make_unique<TableFullScanDS>(n.type, data);
     exec->sequences.push_back(move(seq));
     lastResult = exec->sequences.size() - 1;
 }
 
 void PreparerVisitor::visitReadTableIndexScanQNode(ReadTableIndexScanQNode& n) {
-    DataFile& data = exec->addDataFile(n.tableId);
+    DataFile& data = exec->addDataFile(n.tableId, n.type);
     IndexFile& index = exec->addIndexFile(n.tableId, n.indexId, n.keySchema);
     auto seq = make_unique<TableIndexScanDS>(
         n.type, data, index,

@@ -26,19 +26,21 @@ enum class TokenType {
     Asterisk,
     Slash,
     StringLiteral,
-    NumberLiteral
+    NumberIntLiteral,
+    NumberDoubleLiteral
 };
 
 struct Token {
     TokenType type;
     string text;
     int intVal;
+    double doubleVal;
     int pos;
     Token(): type(TokenType::EndOfString), text(""), pos(0), intVal(0) {}
     Token(TokenType type, int pos)
-        : type(type), text(""), pos(pos), intVal(0) {}
-    Token(TokenType type, string text, int pos, int intVal = 0)
-        : type(type), text(text), pos(pos), intVal(intVal) {}
+        : type(type), text(""), pos(pos), intVal(0), doubleVal(0) {}
+    Token(TokenType type, string text, int pos, int intVal = 0, double doubleVal = 0)
+        : type(type), text(text), pos(pos), intVal(intVal), doubleVal(doubleVal) {}
     inline bool isKeyword(const string& keyword) const {
         return type == TokenType::Keyword && text == keyword;
     }

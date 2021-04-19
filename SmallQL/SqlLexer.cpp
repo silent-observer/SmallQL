@@ -18,7 +18,7 @@ void Lexer::advance() {
         return;
     }
     char c = source[pos];
-    if (isdigit(c))
+    if (isdigit(c) || c == '-' && isdigit(source[pos + 1]))
         lexNumber();
     else if (isalpha(c))
         lexWord();
@@ -69,10 +69,14 @@ void Lexer::advance() {
 }
 
 void Lexer::lexNumber() {
-    size_t index = 0;
-    int number = stoi(source.substr(pos), &index);
-    t = Token(TokenType::NumberLiteral, source.substr(pos, index), pos, number);
-    pos += index;
+    size_t index1 = 0, index2 = 0;
+    double doubleNumber = stod(source.substr(pos), &index1);
+    int intNumber = stoi(source.substr(pos), &index2);
+    if (index1 == index2)
+        t = Token(TokenType::NumberIntLiteral, source.substr(pos, index2), pos, intNumber, NAN);
+    else
+        t = Token(TokenType::NumberDoubleLiteral, source.substr(pos, index1), pos, 0, doubleNumber);
+    pos += index1;
 }
 
 const static set<string> KEYWORDS_SET = {
@@ -82,14 +86,14 @@ const static set<string> KEYWORDS_SET = {
 };
 
 const static set<string> TYPE_SET = {
-    "INT", "INTEGER", "BYTE", "TINYINT", "SMALLINT", "VARCHAR"
+    "INT", "INTEGER", "BYTE", "TINYINT", "SMALLINT", "DOUBLE", "VARCHAR"
 };
 
 const static set<string> FUNCTION_NAME_SET = {
     "CONCAT"
 };
 
-const regex TYPE_REGEX(R"((INTEGER|INT|BYTE|TINYINT|SMALLINT|VARCHAR\([0-9]+\)).*)",
+const regex TYPE_REGEX(R"((INTEGER|INT|BYTE|TINYINT|SMALLINT|DOUBLE|VARCHAR\([0-9]+\)).*)",
     regex_constants::ECMAScript | regex_constants::icase);
 
 void Lexer::lexWord() {

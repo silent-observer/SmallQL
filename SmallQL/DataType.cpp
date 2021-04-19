@@ -22,6 +22,9 @@ Value::Value(ValueType type) : type(type) {
     case ValueType::Integer:
         intVal = 0;
         break;
+    case ValueType::Double:
+        doubleVal = 0;
+        break;
     case ValueType::String:
         new(&stringVal) string();
         break;
@@ -30,6 +33,7 @@ Value::Value(ValueType type) : type(type) {
     }
 }
 Value::Value(int64_t intVal) : type(ValueType::Integer), intVal(intVal) {}
+Value::Value(double doubleVal) : type(ValueType::Double), doubleVal(doubleVal) {}
 Value::Value(string stringVal) : type(ValueType::String), stringVal(stringVal) {}
 Value& Value::operator=(const Value& v) {
     if (this == &v) return *this;
@@ -42,6 +46,9 @@ Value& Value::operator=(const Value& v) {
         break;
     case ValueType::Integer:
         intVal = v.intVal;
+        break;
+    case ValueType::Double:
+        doubleVal = v.doubleVal;
         break;
     case ValueType::String:
         new(&stringVal) string(v.stringVal);
@@ -59,12 +66,34 @@ unique_ptr<DataType> Value::defaultType() const {
         return make_unique<NullType>();
     case ValueType::Integer:
         return make_unique<IntType>();
+    case ValueType::Double:
+        return make_unique<DoubleType>();
     case ValueType::String:
         return make_unique<VarCharType>(stringVal.size());
     default:
         break;
     }
 }
+
+void Value::convertToDouble() {
+    switch (type)
+    {
+    case ValueType::Null:
+    case ValueType::MaxVal:
+    case ValueType::MinVal:
+        return;
+    case ValueType::String:
+        doubleVal = NAN;
+        break;
+    case ValueType::Integer:
+        doubleVal = (double)intVal;
+        break;
+    case ValueType::Double:
+        break;
+    }
+    type = ValueType::Double;
+}
+
 ostream& operator<<(ostream& os, const Value& v) {
     switch (v.type)
     {
@@ -79,6 +108,9 @@ ostream& operator<<(ostream& os, const Value& v) {
         break;
     case ValueType::Integer:
         os << "Int{" << v.intVal << "}";
+        break;
+    case ValueType::Double:
+        os << "Double{" << v.doubleVal << "}";
         break;
     case ValueType::String:
         os << "String{\"" << v.stringVal << "\"}";
@@ -137,6 +169,8 @@ int compareValue(const Value& a, const Value& b) {
     {
     case ValueType::Integer: 
         return cmp(a.intVal, b.intVal);
+    case ValueType::Double: 
+        return cmp(a.doubleVal, b.doubleVal);
     case ValueType::String: 
         return a.stringVal.compare(b.stringVal);
     }
@@ -199,6 +233,25 @@ Value IntType::decode(const char* data) const {
 }
 void IntType::print(ostream& os) const {
     os << "INTEGER";
+}
+
+bool DoubleType::checkVal(Value val) const {
+    return val.type == ValueType::Double || val.type == ValueType::Integer;
+}
+void DoubleType::encode(Value val, char* out) const {
+    assert(checkVal(val));
+    if (val.type == ValueType::Double)
+        *(double*)out = val.doubleVal;
+    else
+        *(double*)out = (double)val.intVal;
+}
+Value DoubleType::decode(const char* data) const {
+    Value result(ValueType::Double);
+    result.doubleVal = *(double*)data;
+    return result;
+}
+void DoubleType::print(ostream& os) const {
+    os << "DOUBLE";
 }
 
 bool VarCharType::checkVal(Value val) const {
@@ -385,6 +438,7 @@ shared_ptr<DataType> parseDataType(string str) {    string s = str;
         return make_shared<IntType>();
     else if (mainName == "SMALLINT") return make_shared<ShortIntType>();
     else if (mainName == "TINYINT" || mainName == "BYTE") return make_shared<ByteType>();
+    else if (mainName == "DOUBLE") return make_shared<DoubleType>();
     else if (mainName == "VARCHAR") {
         if (params == "") return NULL;
         int val = stoi(params);
@@ -397,10 +451,16 @@ shared_ptr<DataType> parseDataType(string str) {    string s = str;
 
 shared_ptr<DataType> typeCheckFunc(string name, vector<shared_ptr<DataType>> inputs) {
     if (name == "+" || name == "-" || name == "*" || name == "/") {
+        bool hasDouble = false;
         for (auto& t : inputs)
-            if (!is<IntType>(t))
+            if (is<DoubleType>(t))
+                hasDouble = true;
+            else if (!is<IntType>(t) && !is<ShortIntType>(t) && !is<ByteType>(t))
                 throw TypeException("Invalid type in " + name + " expression");
-        return make_shared<IntType>();
+        if (hasDouble)
+            return make_shared<DoubleType>();
+        else
+            return make_shared<IntType>();
     }
     else if (name == "CONCAT") {
         for (auto& t : inputs)

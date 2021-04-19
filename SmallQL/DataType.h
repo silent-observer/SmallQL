@@ -11,6 +11,7 @@ using namespace std;
 enum class ValueType {
     Null,
     Integer,
+    Double,
     String,
     MinVal,
     MaxVal
@@ -21,6 +22,7 @@ struct Value {
     ValueType type;
     union {
         int64_t intVal;
+        double doubleVal;
         string stringVal;
     };
 
@@ -31,11 +33,21 @@ struct Value {
     Value& operator=(const Value& other);
 
     Value(int64_t intVal);
+    inline Value(uint64_t v) : Value((int64_t)v) {}
+    inline Value(int32_t v) : Value((int64_t)v) {}
+    inline Value(uint32_t v) : Value((int64_t)v) {}
+    inline Value(uint16_t v) : Value((int64_t)v) {}
+    inline Value(int16_t v) : Value((int64_t)v) {}
+    inline Value(uint8_t v) : Value((int64_t)v) {}
+    inline Value(int8_t v) : Value((int64_t)v) {}
+    Value(double doubleVal);
     Value(string stringVal);
     friend ostream& operator<<(ostream& os, const Value& v);
     friend int compareValue(const Value& a, const Value& b);
     unique_ptr<DataType> defaultType() const;
     virtual string toString() const;
+
+    void convertToDouble();
 };
 using ValueArray = vector<Value>;
 
@@ -155,6 +167,16 @@ public:
     void print(ostream& os) const;
 };
 
+class DoubleType : public FixedLengthType {
+public:
+    DoubleType(): FixedLengthType(8, 1) {}
+
+    bool checkVal(Value val) const;
+    void encode(Value val, char* out) const;
+    Value decode(const char* data) const;
+    void print(ostream& os) const;
+};
+
 class VarCharType : public FixedLengthType {
 private:
     uint16_t maxSize;
@@ -167,7 +189,8 @@ public:
     void print(ostream& os) const;
 };
 
-static inline int cmp(uint64_t x, uint64_t y) {
+template<typename T>
+static inline int cmp(T x, T y) {
     return x > y ? 1 : x < y ? -1 : 0;
 }
 

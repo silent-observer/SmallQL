@@ -1,6 +1,7 @@
 #include "SystemInfoManager.h"
 
 #include "DataFile.h"
+#include "IndexFile.h"
 #include <iostream>
 #include <set>
 
@@ -179,4 +180,7 @@ void SystemInfoManager::createPrimaryIndex(uint16_t tableId) {
     indexes[make_pair(tableId, 0)] = IndexInfo{ 0, "PRIMARY", keySchema };
     indexNames[make_pair(tableId, "PRIMARY")] = 0;
     tables[tableId].indexes.push_back(0);
+
+    DataFile table(*this, tableId);
+    IndexFile index(tableId, 0, tables[tableId].primaryKeys);
 }
