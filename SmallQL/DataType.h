@@ -57,11 +57,9 @@ int compareValue(const Value& a, const Value& b);
 class DataType {
 protected:
     uint32_t size;
-    uint8_t priority;
-    DataType(uint32_t size, uint8_t priority) : size(size), priority(priority) {}
+    DataType(uint32_t size) : size(size) {}
 public:
     inline uint32_t getSize() const { return size; };
-    inline uint32_t getPriority() const { return priority; };
     virtual bool checkVal(Value val) const = 0;
     virtual void encode(Value val, char* out) const = 0;
     virtual Value decode(const char* data) const = 0;
@@ -71,7 +69,7 @@ public:
 
 class NullType : public DataType {
 public:
-    NullType() : DataType(0, 0) {}
+    NullType() : DataType(0) {}
     virtual bool checkVal(Value val) const;
     virtual void encode(Value val, char* out) const;
     virtual Value decode(const char* data) const;
@@ -80,7 +78,7 @@ public:
 
 class FixedLengthType : public DataType {
 protected:
-    FixedLengthType(uint32_t size, uint8_t priority) : DataType(size, priority) {}
+    FixedLengthType(uint32_t size) : DataType(size) {}
 };
 
 struct SchemaEntry {
@@ -139,7 +137,7 @@ struct Schema {
 
 class ByteType : public FixedLengthType {
 public:
-    ByteType(): FixedLengthType(1, 4) {}
+    ByteType(): FixedLengthType(1) {}
 
     bool checkVal(Value val) const;
     void encode(Value val, char* out) const;
@@ -149,7 +147,7 @@ public:
 
 class ShortIntType : public FixedLengthType {
 public:
-    ShortIntType(): FixedLengthType(2, 3) {}
+    ShortIntType(): FixedLengthType(2) {}
 
     bool checkVal(Value val) const;
     void encode(Value val, char* out) const;
@@ -159,7 +157,7 @@ public:
 
 class IntType : public FixedLengthType {
 public:
-    IntType(): FixedLengthType(4, 2) {}
+    IntType(): FixedLengthType(4) {}
 
     bool checkVal(Value val) const;
     void encode(Value val, char* out) const;
@@ -169,7 +167,7 @@ public:
 
 class DoubleType : public FixedLengthType {
 public:
-    DoubleType(): FixedLengthType(8, 1) {}
+    DoubleType(): FixedLengthType(8) {}
 
     bool checkVal(Value val) const;
     void encode(Value val, char* out) const;
@@ -181,7 +179,7 @@ class VarCharType : public FixedLengthType {
 private:
     uint16_t maxSize;
 public:
-    VarCharType(uint16_t maxSize) : maxSize(maxSize), FixedLengthType(maxSize + 2, 10) {}
+    VarCharType(uint16_t maxSize) : maxSize(maxSize), FixedLengthType(maxSize + 2) {}
 
     bool checkVal(Value val) const;
     void encode(Value val, char* out) const;
