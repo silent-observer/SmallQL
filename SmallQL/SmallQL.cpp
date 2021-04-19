@@ -157,7 +157,7 @@ int main()
         }
         cout << endl;
         string text = ss.str();
-        if (text == "exit;")
+        if (text.substr(0, 4) == "exit" || text.substr(0, 4) == "EXIT")
             break;
         /*string text = "INSERT INTO test_table VALUES "
             "(1, \"Hello\", 1543), "
