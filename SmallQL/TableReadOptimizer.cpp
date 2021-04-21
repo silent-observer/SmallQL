@@ -180,7 +180,8 @@ private:
         indexRead->to = to;
         indexRead->incFrom = incFrom;
         indexRead->incTo = incTo;
-        indexRead->type = sysMan.getTableSchema(tableId);
+        indexRead->tableSchema = sysMan.getTableSchema(tableId);
+        indexRead->type = IntermediateType(indexRead->tableSchema, sysMan.getTableInfo(tableId).name);
 
         if (indexifyable.size() != n.children.size()) {
             auto filter = make_unique<FilterQNode>();
@@ -276,7 +277,8 @@ public:
         indexRead->to = to;
         indexRead->incFrom = incFrom;
         indexRead->incTo = incTo;
-        indexRead->type = sysMan.getTableSchema(tableId);
+        indexRead->tableSchema = sysMan.getTableSchema(tableId);
+        indexRead->type = IntermediateType(indexRead->tableSchema, sysMan.getTableInfo(tableId).name);
         result = move(indexRead);
     }
     inline QTablePtr getResult() {

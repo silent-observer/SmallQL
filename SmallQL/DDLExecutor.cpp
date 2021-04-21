@@ -1,4 +1,5 @@
 #include "DDLExecutor.h"
+#include <iostream>
 
 void executeCreateTable(const CreateTableNode* n, SystemInfoManager& sysMan) {
     if (sysMan.tableExists(n->name)) {

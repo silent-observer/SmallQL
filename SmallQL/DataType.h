@@ -119,7 +119,7 @@ struct Schema {
     inline ValueArray decode(const vector<char>& data) const {
         return decode(data.data());
     }
-    int compare(ValueArray a, ValueArray b) const;
+    int compare(const ValueArray& a, const ValueArray& b) const;
     int compare(const char* a, ValueArray b) const;
     inline int compare(ValueArray a, const char* b) const {
         return -compare(b, a);
@@ -207,3 +207,28 @@ public:
 
 shared_ptr<DataType> parseDataType(string str);
 shared_ptr<DataType> typeCheckFunc(string name, vector<shared_ptr<DataType>> inputs);
+
+struct IntermediateTypeEntry {
+    string columnName, tableName;
+    shared_ptr<DataType> type;
+    int id;
+    bool canBeNull;
+    IntermediateTypeEntry() {}
+    IntermediateTypeEntry(string columnName, string tableName,
+        shared_ptr<DataType> type, bool canBeNull)
+        : columnName(columnName)
+        , tableName(tableName)
+        , type(type)
+        , id(-1)
+        , canBeNull(canBeNull) {}
+};
+
+struct IntermediateType {
+    vector<IntermediateTypeEntry> entries;
+    vector<bool> isAmbiguous;
+    IntermediateType() : entries(), isAmbiguous() {}
+    IntermediateType(const Schema& schema, string tableName = "");
+    int compare(const ValueArray& a, const ValueArray& b) const;
+    void addEntry(const IntermediateTypeEntry& entry);
+    friend ostream& operator<<(ostream& os, const IntermediateType& type);
+};

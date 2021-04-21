@@ -3,23 +3,21 @@
 #include "DataFile.h"
 #include "IndexFile.h"
 #include "SystemInfoManager.h"
-#include "SystemInfoManager.h"
-
 
 #include <iostream>
 
 struct RecordPtr {
-    Schema type;
+    IntermediateType type;
     ValueArray* record;
     RecordPtr() : record(NULL) {}
-    RecordPtr(const Schema& type) : record(NULL), type(type) {}
+    RecordPtr(const IntermediateType& type) : record(NULL), type(type) {}
 };
 
 class DataSequence {
 protected:
     RecordPtr record;
     DataSequence() {}
-    DataSequence(const Schema& type): record(type) {}
+    DataSequence(const IntermediateType& type): record(type) {}
 public:
     virtual ~DataSequence() {}
     virtual void reset() = 0;
@@ -28,7 +26,7 @@ public:
     }
     virtual void advance() = 0;
     virtual bool hasEnded() const = 0;
-    inline const Schema& getType() const {
+    inline const IntermediateType& getType() const {
         return record.type;
     }
 };
@@ -37,9 +35,10 @@ class TableFullScanDS : public DataSequence {
 private:
     DataFile& data;
     DataFile::const_iterator iter;
+    const Schema& schema;
     unique_ptr<ValueArray> recordData;
 public:
-    TableFullScanDS(const Schema& type, DataFile& data);
+    TableFullScanDS(const Schema& schema, DataFile& data);
     virtual void reset();
     virtual void advance();
     virtual bool hasEnded() const;
@@ -50,11 +49,12 @@ private:
     DataFile& data;
     IndexFile& index;
     IndexFile::const_iterator iter;
+    const Schema& schema;
     ValueArray from, to;
     bool incFrom, incTo;
     unique_ptr<ValueArray> recordData;
 public:
-    TableIndexScanDS(const Schema& type, DataFile& data, IndexFile& index,
+    TableIndexScanDS(const Schema& schema, DataFile& data, IndexFile& index,
         ValueArray from, ValueArray to, bool incFrom, bool incTo);
     virtual void reset();
     virtual void advance();
@@ -68,7 +68,7 @@ private:
     unique_ptr<ValueArray> recordData;
     void update();
 public:
-    ProjectorDS(const Schema& type, 
+    ProjectorDS(const IntermediateType& type, 
         DataSequence* source, 
         vector<uint16_t> columns);
     virtual void reset();
@@ -86,7 +86,7 @@ private:
     unique_ptr<ComputerVisitor> visitor;
     void update();
 public:
-    FuncProjectorDS(const Schema& type,
+    FuncProjectorDS(const IntermediateType& type,
         DataSequence* source, 
         vector<unique_ptr<QScalarNode>> funcs);
     virtual void reset();
@@ -103,7 +103,7 @@ private:
     unique_ptr<CondCheckerVisitor> visitor;
     void update();
 public:
-    FilterDS(const Schema& type, 
+    FilterDS(const IntermediateType& type, 
         DataSequence* source, 
         unique_ptr<QConditionNode> cond);
     virtual void reset();
@@ -117,7 +117,7 @@ private:
     int currentIndex;
     void update();
 public:
-    UnionDS(const Schema& type, vector<DataSequence*> sources);
+    UnionDS(const IntermediateType& type, vector<DataSequence*> sources);
     virtual void reset();
     virtual void advance();
     virtual bool hasEnded() const;
@@ -129,7 +129,7 @@ private:
     int index;
     void update();
 public:
-    ConstTableDS(const Schema& type,
+    ConstTableDS(const IntermediateType& type,
         vector<ValueArray> values);
     virtual void reset();
     virtual void advance();
@@ -141,6 +141,7 @@ vector<ValueArray> selectData(DataSequence* source);
 class Inserter {
 private:
     DataFile dataFile;
+    const Schema& schema;
     vector<IndexFile> indexFiles;
 public:
     Inserter(const SystemInfoManager& sysMan, uint16_t tableId);

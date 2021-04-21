@@ -2,31 +2,32 @@
 #include "QueryTree.h"
 #include "ComputerVisitor.h"
 
-TableFullScanDS::TableFullScanDS(const Schema& type, DataFile& data)
+TableFullScanDS::TableFullScanDS(const Schema& schema, DataFile& data)
     : data(data)
     , iter(makeConst(data).begin())
     , recordData(make_unique<ValueArray>())
-    , DataSequence(type) {
+    , schema(schema)
+    , DataSequence(IntermediateType(schema)) {
     record.record = recordData.get();
     reset();
 }
 void TableFullScanDS::reset() {
     iter = makeConst(data).begin();
     if (iter != makeConst(data).end()) {
-        *recordData = record.type.decode(*iter);
+        *recordData = schema.decode(*iter);
     }
 }
 void TableFullScanDS::advance() {
     if (iter == makeConst(data).end()) return;
     iter++;
-    *recordData = record.type.decode(*iter);
+    *recordData = schema.decode(*iter);
 }
 bool TableFullScanDS::hasEnded() const {
     return iter == makeConst(data).end();
 }
 
 
-TableIndexScanDS::TableIndexScanDS(const Schema& type, DataFile& data, IndexFile& index,
+TableIndexScanDS::TableIndexScanDS(const Schema& schema, DataFile& data, IndexFile& index,
         ValueArray from, ValueArray to, bool incFrom, bool incTo)
     : data(data)
     , index(index)
@@ -35,8 +36,9 @@ TableIndexScanDS::TableIndexScanDS(const Schema& type, DataFile& data, IndexFile
     , to(to)
     , incFrom(incFrom)
     , incTo(incTo)
+    , schema(schema)
     , recordData(make_unique<ValueArray>())
-    , DataSequence(type) {
+    , DataSequence(IntermediateType(schema)) {
     record.record = recordData.get();
     reset();
 }
@@ -44,11 +46,11 @@ void TableIndexScanDS::reset() {
     iter = index.getIterator(from);
     if (iter == index.end()) return;
 
-    *recordData = record.type.decode(data.readRecord(*iter));
+    *recordData = schema.decode(data.readRecord(*iter));
     if (!incFrom) {
         while (index.getKeySchema().compare(from, *recordData) == 0) {
             iter++;
-            *recordData = record.type.decode(data.readRecord(*iter));
+            *recordData = schema.decode(data.readRecord(*iter));
             if (iter == index.end()) return;
         }
     }
@@ -56,7 +58,7 @@ void TableIndexScanDS::reset() {
 void TableIndexScanDS::advance() {
     if (iter == index.end()) return;
     iter++;
-    *recordData = record.type.decode(data.readRecord(*iter));
+    *recordData = schema.decode(data.readRecord(*iter));
     int cmpVal = index.getKeySchema().compare(to, *recordData);
     if (cmpVal < 0 || !incTo && cmpVal == 0)
         iter = index.end();
@@ -66,7 +68,7 @@ bool TableIndexScanDS::hasEnded() const {
 }
 
 
-ProjectorDS::ProjectorDS(const Schema& type,
+ProjectorDS::ProjectorDS(const IntermediateType& type,
     DataSequence* source,
     vector<uint16_t> columns)
     : source(move(source))
@@ -97,11 +99,11 @@ void ProjectorDS::update() {
 
 class CondCheckerVisitor : public QConditionNode::Visitor {
 private:
-    const Schema& schema;
+    const IntermediateType& schema;
     const ValueArray* record;
     bool result;
 public:
-    CondCheckerVisitor(const Schema& schema, const ValueArray* record)
+    CondCheckerVisitor(const IntermediateType& schema, const ValueArray* record)
         : schema(schema), record(record) {}
     inline bool getResult() const {
         return result;
@@ -146,12 +148,12 @@ void CondCheckerVisitor::visitCompareConditionQNode(CompareConditionQNode& n) {
         result = n.equal;
 }
 
-FuncProjectorDS::FuncProjectorDS(const Schema& type,
+FuncProjectorDS::FuncProjectorDS(const IntermediateType& type,
     DataSequence* source,
     vector<unique_ptr<QScalarNode>> funcs)
     : source(move(source))
     , funcs()
-    , recordData(make_unique<ValueArray>(type.columns.size()))
+    , recordData(make_unique<ValueArray>(type.entries.size()))
     , DataSequence(type) {
     record.record = recordData.get();
     for (auto& f : funcs)
@@ -184,7 +186,7 @@ void FuncProjectorDS::update() {
 }
 
 
-FilterDS::FilterDS(const Schema& type,
+FilterDS::FilterDS(const IntermediateType& type,
     DataSequence* source,
     QCondPtr cond) 
     : source(move(source))
@@ -218,7 +220,7 @@ void FilterDS::update() {
     }
 }
 
-UnionDS::UnionDS(const Schema& type,
+UnionDS::UnionDS(const IntermediateType& type,
     vector<DataSequence*> sources) 
     : sources(move(sources))
     , DataSequence(type) {
@@ -247,7 +249,7 @@ void UnionDS::update() {
     }
 }
 
-ConstTableDS::ConstTableDS(const Schema& type,
+ConstTableDS::ConstTableDS(const IntermediateType& type,
     vector<ValueArray> values)
     : DataSequence(type)
     , values(values)
@@ -271,7 +273,7 @@ bool ConstTableDS::hasEnded() const {
 }
 
 vector<ValueArray> selectData(DataSequence* source) {
-    const Schema& t = source->getType();
+    const IntermediateType& t = source->getType();
     source->reset();
     vector<ValueArray> result;
     while (!source->hasEnded()) {
@@ -283,6 +285,7 @@ vector<ValueArray> selectData(DataSequence* source) {
 
 Inserter::Inserter(const SystemInfoManager& sysMan, uint16_t tableId) 
     : dataFile(sysMan, tableId)
+    , schema(sysMan.getTableSchema(tableId))
 {
     const vector<uint16_t>& indexes = sysMan.getTableInfo(tableId).indexes;
     for (uint16_t indexId : indexes) {
@@ -292,7 +295,7 @@ Inserter::Inserter(const SystemInfoManager& sysMan, uint16_t tableId)
 }
 
 bool Inserter::insert(RecordPtr record) {
-    vector<char> encoded = record.type.encode(*record.record);
+    vector<char> encoded = schema.encode(*record.record);
     RecordId recordId = dataFile.addRecord(encoded.data());
     ValueArray decoded = *record.record;
     for (IndexFile& index : indexFiles) {

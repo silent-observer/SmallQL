@@ -36,17 +36,17 @@ void Executor::prepare(QTablePtr tree) {
 }
 
 void PreparerVisitor::visitReadTableQNode(ReadTableQNode& n) {
-    DataFile& data = exec->addDataFile(n.tableId, n.type);
-    auto seq = make_unique<TableFullScanDS>(n.type, data);
+    DataFile& data = exec->addDataFile(n.tableId, n.tableSchema);
+    auto seq = make_unique<TableFullScanDS>(n.tableSchema, data);
     exec->sequences.push_back(move(seq));
     lastResult = exec->sequences.size() - 1;
 }
 
 void PreparerVisitor::visitReadTableIndexScanQNode(ReadTableIndexScanQNode& n) {
-    DataFile& data = exec->addDataFile(n.tableId, n.type);
+    DataFile& data = exec->addDataFile(n.tableId, n.tableSchema);
     IndexFile& index = exec->addIndexFile(n.tableId, n.indexId, n.keySchema);
     auto seq = make_unique<TableIndexScanDS>(
-        n.type, data, index,
+        n.tableSchema, data, index,
         n.from, n.to, n.incFrom, n.incTo);
     exec->sequences.push_back(move(seq));
     lastResult = exec->sequences.size() - 1;

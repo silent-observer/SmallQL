@@ -3,13 +3,12 @@
 #include <vector>
 #include <memory>
 #include "DataType.h"
-#include "Executor.h"
 #include "Common.h"
 
 using namespace std;
 
 struct QTableNode {
-    Schema type;
+    IntermediateType type;
     int id;
     QTableNode(): id(0) {}
     class Visitor;
@@ -18,7 +17,7 @@ struct QTableNode {
 };
 using QTablePtr = unique_ptr<QTableNode>;
 struct QScalarNode {
-    SchemaEntry type;
+    IntermediateTypeEntry type;
     QScalarNode() {}
     class Visitor;
     class RecursiveVisitor;
@@ -78,6 +77,7 @@ public:
 
 struct ReadTableQNode : public QTableNode {
     uint16_t tableId;
+    Schema tableSchema;
     ReadTableQNode() {}
     virtual void accept(QTableNode::Visitor* v) {
         v->visitReadTableQNode(*this);
@@ -86,6 +86,7 @@ struct ReadTableQNode : public QTableNode {
 struct ReadTableIndexScanQNode : public QTableNode {
     uint16_t tableId;
     uint16_t indexId;
+    Schema tableSchema;
     Schema keySchema;
     ValueArray from, to;
     bool incFrom, incTo;

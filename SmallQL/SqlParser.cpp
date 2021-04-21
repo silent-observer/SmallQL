@@ -13,7 +13,7 @@ unique_ptr<StatementNode> Parser::parse() {
         return parseInsert();
     }
     else if (l.get().text == "CREATE") {
-        l.pop();
+        l.advance();
         if (l.get().isKeyword("TABLE"))
             return parseCreateTable();
         throw ParserException("Unknown CREATE command", l.getPos());
@@ -144,6 +144,13 @@ unique_ptr<ColumnNameExpr> Parser::parseColumnNameExpr() {
     check(TokenType::Id, "Expected column name");
     auto result = l.createPtr<ColumnNameExpr>();
     result->name = l.pop().text;
+    result->tableName = "";
+    if (l.get().type == TokenType::Dot) {
+        l.advance();
+        result->tableName = result->name;
+        check(TokenType::Id, "Expected column name");
+        result->name = l.pop().text;
+    }
     return result;
 }
 
@@ -175,10 +182,10 @@ unique_ptr<FuncExpr> Parser::parseFuncExpr() {
 
 unique_ptr<ExprNode> Parser::parseAtomicExpr() {
     if (l.get().type == TokenType::LParen) {
-        l.pop();
+        l.advance();
         auto result = parseExpr();
         check(TokenType::RParen, "Expected right parenthesis");
-        l.pop();
+        l.advance();
         return result;
     }
     else if (l.get().type == TokenType::Id) {
@@ -199,7 +206,7 @@ unique_ptr<ExprNode> Parser::parseMultExpr() {
         n->children.push_back(move(result));
         auto currentType = l.get().type;
         while (l.get().type == currentType) {
-            l.pop();
+            l.advance();
             n->children.push_back(parseAtomicExpr());
         }
         result = move(n);
@@ -215,7 +222,7 @@ unique_ptr<ExprNode> Parser::parseAddExpr() {
         n->children.push_back(move(result));
         auto currentType = l.get().type;
         while (l.get().type == currentType) {
-            l.pop();
+            l.advance();
             n->children.push_back(parseMultExpr());
         }
         result = move(n);
@@ -304,18 +311,18 @@ unique_ptr<CreateTableNode> Parser::parseCreateTable() {
     check(TokenType::Id, "Expected table name");
     result->name = l.pop().text;
     check(TokenType::LParen, "Expected left paren");
-    l.pop();
+    l.advance();
     while (l.get().type == TokenType::Id) {
         result->columns.push_back(parseColumnSpec());
         if (l.get().type != TokenType::RParen) {
             check(TokenType::Comma, "Expected comma");
-            l.pop();
+            l.advance();
         }
     }
     check(TokenType::RParen, "Expected right paren");
-    l.pop();
+    l.advance();
     check(TokenType::Semicolon, "Expected semicolon");
-    l.pop();
+    l.advance();
     return result;
 }
 
@@ -332,16 +339,16 @@ unique_ptr<ColumnSpecNode> Parser::parseColumnSpec() {
 
     while (l.get().type == TokenType::Keyword && (l.get().text == "PRIMARY" || l.get().text == "NOT")) {
         if (l.get().isKeyword("PRIMARY")) {
-            l.pop();
+            l.advance();
             checkKeyword("KEY", "Expected KEY");
-            l.pop();
+            l.advance();
             result->isPrimary = true;
             result->canBeNull = false;
         }
         else if (l.get().isKeyword("NOT")) {
-            l.pop();
+            l.advance();
             checkKeyword("NULL", "Expected NULL");
-            l.pop();
+            l.advance();
             result->canBeNull = false;
         }
     }

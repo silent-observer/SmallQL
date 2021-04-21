@@ -46,7 +46,10 @@ void TableName::prettyPrint(ostream& s, int level) const
 
 void ColumnNameExpr::prettyPrint(ostream& s, int level) const
 {
-    s << "Column(" << name << ")";
+    s << "Column(";
+    if (tableName != "")
+        s << tableName + ".";
+    s << name << ")";
 }
 
 void ConstExpr::prettyPrint(ostream& s, int level) const

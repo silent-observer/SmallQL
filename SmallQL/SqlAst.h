@@ -26,12 +26,12 @@ struct TableAlgebrizableNode : public AstNode {
 struct ScalarAlgebrizableNode : public AstNode {
     virtual QScalarPtr algebrizeWithContext(
         const SystemInfoManager& sysMan, 
-        const Schema& type) const = 0;
+        const IntermediateType& type) const = 0;
 };
 struct ConditionAlgebrizableNode : public AstNode {
     virtual QCondPtr algebrizeWithContext(
         const SystemInfoManager& sysMan, 
-        const Schema& type) const = 0;
+        const IntermediateType& type) const = 0;
 };
 
 struct StatementNode : public TableAlgebrizableNode {};
@@ -41,7 +41,7 @@ struct QueryNode : public TableAlgebrizableNode {};
 struct InsertDataNode : public TableAlgebrizableNode {
     virtual QTablePtr algebrizeWithContext(
         const SystemInfoManager& sysMan, 
-        const Schema& type) const = 0;
+        const IntermediateType& type) const = 0;
 };
 struct ConditionNode : public ConditionAlgebrizableNode {};
 
@@ -77,10 +77,11 @@ struct TableName : public TableExpr {
 
 struct ColumnNameExpr : public ExprNode {
     string name;
+    string tableName;
     virtual void prettyPrint(ostream& s, int level) const;
     virtual QScalarPtr algebrizeWithContext(
         const SystemInfoManager& sysMan,
-        const Schema& type) const;
+        const IntermediateType& type) const;
 };
 
 struct ConstExpr : public ExprNode {
@@ -88,7 +89,7 @@ struct ConstExpr : public ExprNode {
     virtual void prettyPrint(ostream& s, int level) const;
     virtual QScalarPtr algebrizeWithContext(
         const SystemInfoManager& sysMan,
-        const Schema& type) const;
+        const IntermediateType& type) const;
 };
 
 struct FuncExpr : public ExprNode {
@@ -97,7 +98,7 @@ struct FuncExpr : public ExprNode {
     virtual void prettyPrint(ostream& s, int level) const;
     virtual QScalarPtr algebrizeWithContext(
         const SystemInfoManager& sysMan,
-        const Schema& type) const;
+        const IntermediateType& type) const;
 };
 
 struct InsertValuesNode : public InsertDataNode {
@@ -108,7 +109,7 @@ struct InsertValuesNode : public InsertDataNode {
     }
     virtual QTablePtr algebrizeWithContext(
         const SystemInfoManager& sysMan,
-        const Schema& type) const;
+        const IntermediateType& type) const;
 };
 
 struct AndConditionNode : public ConditionNode {
@@ -116,7 +117,7 @@ struct AndConditionNode : public ConditionNode {
     virtual void prettyPrint(ostream& s, int level) const;
     virtual QCondPtr algebrizeWithContext(
         const SystemInfoManager& sysMan, 
-        const Schema& type) const;
+        const IntermediateType& type) const;
 };
 
 struct OrConditionNode : public ConditionNode {
@@ -124,7 +125,7 @@ struct OrConditionNode : public ConditionNode {
     virtual void prettyPrint(ostream& s, int level) const;
     virtual QCondPtr algebrizeWithContext(
         const SystemInfoManager& sysMan, 
-        const Schema& type) const;
+        const IntermediateType& type) const;
 };
 
 enum class CompareType {
@@ -142,7 +143,7 @@ struct CompareConditionNode : public ConditionNode {
     virtual void prettyPrint(ostream& s, int level) const;
     virtual QCondPtr algebrizeWithContext(
         const SystemInfoManager& sysMan, 
-        const Schema& type) const;
+        const IntermediateType& type) const;
 };
 
 struct ColumnSpecNode : public NonAlgebrizableNode {

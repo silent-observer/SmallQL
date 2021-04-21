@@ -6,7 +6,7 @@ QTablePtr InsertStmtNode::algebrize(const SystemInfoManager& sysMan) {
     result->tableId = convert<ReadTableQNode>(table)->tableId;
     result->source = 
         insertData->algebrizeWithContext(sysMan, table->type);
-    result->type = Schema();
+    result->type = IntermediateType();
     return result;
 }
 
@@ -23,25 +23,25 @@ QTablePtr SelectNode::algebrize(const SystemInfoManager& sysMan) {
     if (!isStar) {
         auto projection = make_unique<ProjectionQNode>();
         auto funcProjection = make_unique<FuncProjectionQNode>();
-        int funcId = source->type.columns.size();
-        projection->type = Schema();
+        int funcId = source->type.entries.size();
+        projection->type = IntermediateType();
         funcProjection->type = source->type;
         for (const auto& p : columns) {
             string alias = p.second;
             auto colExpr = p.first->algebrizeWithContext(sysMan, source->type);
             if (auto col = convert<ColumnQNode>(colExpr)) {
                 projection->columns.push_back(col->columnId);
-                SchemaEntry scalar = col->type;
-                scalar.name = alias;
-                projection->type.addColumn(scalar);
+                IntermediateTypeEntry scalar = col->type;
+                scalar.columnName = alias;
+                projection->type.addEntry(scalar);
             }
             else {
-                SchemaEntry scalar = colExpr->type;
-                funcProjection->type.addColumn(scalar);
+                IntermediateTypeEntry scalar = colExpr->type;
+                funcProjection->type.addEntry(scalar);
                 funcProjection->funcs.push_back(move(colExpr));
-                scalar.name = alias;
+                scalar.columnName = alias;
                 projection->columns.push_back(funcId);
-                projection->type.addColumn(scalar);
+                projection->type.addEntry(scalar);
                 funcId++;
             }
         }
@@ -68,35 +68,35 @@ QTablePtr TableName::algebrize(const SystemInfoManager& sysMan) {
     if (!sysMan.tableExists(name))
         throw SemanticException("Table " + name + " doesn't exist!");
     result->tableId = sysMan._getTableId(name);
-    result->type = sysMan._getTableSchema(name);
+    result->tableSchema = sysMan._getTableSchema(name);
+    result->type = IntermediateType(result->tableSchema, name);
     return result;
 }
 
 QScalarPtr ColumnNameExpr::algebrizeWithContext(
-        const SystemInfoManager& sysMan, const Schema& type) const {
+        const SystemInfoManager& sysMan, const IntermediateType& type) const {
     auto result = make_unique<ColumnQNode>();
     result->name = name;
-    for (int i = 0; i < type.columns.size(); i++) {
-        if (type.columns[i].name == name) {
+    for (int i = 0; i < type.entries.size(); i++) {
+        if (type.entries[i].columnName == name) {
             result->columnId = i;
-            result->type = type.columns[i];
+            result->type = type.entries[i];
             return result;
         }
     }
-    if (!sysMan.tableExists(name))
-        throw SemanticException("Column " + name + " doesn't exist!");
+    throw SemanticException("Column " + name + " doesn't exist!");
 }
 
 QScalarPtr ConstExpr::algebrizeWithContext(
-        const SystemInfoManager& sysMan, const Schema& type) const {
+        const SystemInfoManager& sysMan, const IntermediateType& type) const {
     auto result = make_unique<ConstScalarQNode>();
     result->data = v;
-    result->type = schemaEntryNormal(v.toString(), v.defaultType());
+    result->type = IntermediateTypeEntry(v.toString(), "", v.defaultType(), v.type == ValueType::Null);
     return result;
 }
 
 QScalarPtr FuncExpr::algebrizeWithContext(
-        const SystemInfoManager& sysMan, const Schema& type) const {
+        const SystemInfoManager& sysMan, const IntermediateType& type) const {
     auto result = make_unique<FuncQNode>();
     result->name = name;
     vector<shared_ptr<DataType>> inputs;
@@ -106,12 +106,12 @@ QScalarPtr FuncExpr::algebrizeWithContext(
     }
     auto dataType = typeCheckFunc(name, inputs);
     string text = AstNode::prettyPrint();
-    result->type = schemaEntryNormal(text, dataType);
+    result->type = IntermediateTypeEntry(text, "", dataType, true);
     return result;
 }
 
 QTablePtr InsertValuesNode::algebrizeWithContext(
-        const SystemInfoManager& sysMan, const Schema& type) const {
+        const SystemInfoManager& sysMan, const IntermediateType& type) const {
     auto result = make_unique<ConstDataNode>();
     result->type = type;
     result->data = data;
@@ -120,7 +120,7 @@ QTablePtr InsertValuesNode::algebrizeWithContext(
 
 QCondPtr AndConditionNode::algebrizeWithContext(
         const SystemInfoManager& sysMan, 
-        const Schema& type) const {
+        const IntermediateType& type) const {
     auto result = make_unique<AndConditionQNode>();
     for (const auto& c : children) {
         result->children.push_back(
@@ -131,7 +131,7 @@ QCondPtr AndConditionNode::algebrizeWithContext(
 
 QCondPtr OrConditionNode::algebrizeWithContext(
         const SystemInfoManager& sysMan, 
-        const Schema& type) const {
+        const IntermediateType& type) const {
     auto result = make_unique<OrConditionQNode>();
     for (const auto& c : children) {
         result->children.push_back(
@@ -142,7 +142,7 @@ QCondPtr OrConditionNode::algebrizeWithContext(
 
 QCondPtr CompareConditionNode::algebrizeWithContext(
         const SystemInfoManager& sysMan, 
-        const Schema& type) const {
+        const IntermediateType& type) const {
     auto result = make_unique<CompareConditionQNode>();
     result->left = left->algebrizeWithContext(sysMan, type);
     result->right = right->algebrizeWithContext(sysMan, type);

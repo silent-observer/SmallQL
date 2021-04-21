@@ -274,14 +274,6 @@ void VarCharType::print(ostream& os) const {
     os << "VARCHAR(" << maxSize << ")";
 }
 
-int Schema::compare(ValueArray a, ValueArray b) const {
-    for (int i = 0; i < columns.size(); i++) {
-        int x = compareValue(a[i], b[i]);
-        if (x != 0) return x;
-    }
-    return 0;
-}
-
 int Schema::compare(const char* a, ValueArray b) const {
     uint32_t offset = 0;
     for (int i = 0; i < columns.size(); i++) {
@@ -469,4 +461,57 @@ shared_ptr<DataType> typeCheckFunc(string name, vector<shared_ptr<DataType>> inp
         return make_shared<IntType>();
     }
     return nullptr;
+}
+
+IntermediateType::IntermediateType(const Schema& schema, string tableName) {
+    for (int i = 0; i < schema.columns.size(); i++) {
+        IntermediateTypeEntry entry;
+        entry.columnName = schema.columns[i].name;
+        entry.tableName = tableName;
+        entry.type = schema.columns[i].type;
+        entry.canBeNull = schema.columns[i].canBeNull;
+        entry.id = schema.columns[i].id;
+        entries.push_back(entry);
+        isAmbiguous.push_back(false);
+    }
+}
+
+int Schema::compare(const ValueArray& a, const ValueArray& b) const {
+    for (int i = 0; i < a.size(); i++) {
+        int x = compareValue(a[i], b[i]);
+        if (x != 0) return x;
+    }
+    return 0;
+}
+
+int IntermediateType::compare(const ValueArray& a, const ValueArray& b) const {
+    for (int i = 0; i < a.size(); i++) {
+        int x = compareValue(a[i], b[i]);
+        if (x != 0) return x;
+    }
+    return 0;
+}
+
+void IntermediateType::addEntry(const IntermediateTypeEntry& entry) {
+    bool ambiguous = false;
+    for (int i = 0; i < entries.size(); i++)
+        if (entry.columnName == entries[i].columnName) {
+            ambiguous = true;
+            break;
+        }
+    entries.push_back(entry);
+    entries.back().id = entries.size() - 1;
+    isAmbiguous.push_back(ambiguous);
+}
+
+ostream& operator<<(ostream& os, const IntermediateType& type) {
+    os << "[";
+    for (int i = 0; i < type.entries.size(); i++) {
+        if (i != 0) os << ", ";
+        if (type.isAmbiguous[i])
+            os << type.entries[i].tableName << ".";
+        os << type.entries[i].columnName << " " << *type.entries[i].type;
+    }
+    os << " ]";
+    return os;
 }

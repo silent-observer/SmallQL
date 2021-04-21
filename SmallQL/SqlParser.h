@@ -25,6 +25,7 @@ enum class TokenType {
     Minus,
     Asterisk,
     Slash,
+    Dot,
     StringLiteral,
     NumberIntLiteral,
     NumberDoubleLiteral

@@ -1,5 +1,7 @@
 #include "QueryTree.h"
 
+#include <iostream>
+
 class ScalarPrinter : public QScalarNode::Visitor {
 public:
     virtual void visitColumnQNode(ColumnQNode& n) {

@@ -4,12 +4,12 @@
 
 class ComputerVisitor : public QScalarNode::Visitor {
 private:
-    const Schema& schema;
+    const IntermediateType& type;
     const ValueArray& record;
     Value result;
 public:
-    ComputerVisitor(const Schema& schema, const ValueArray& record)
-        : schema(schema), record(record) {}
+    ComputerVisitor(const IntermediateType& type, const ValueArray& record)
+        : type(type), record(record) {}
     inline const Value& getResult() const {
         return result;
     }
