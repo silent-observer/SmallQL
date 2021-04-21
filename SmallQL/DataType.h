@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <vector>
+#include <set>
 #include <string>
 #include <memory>
 #include "Common.h"
@@ -105,6 +106,7 @@ struct Schema {
     int size;
     Schema() : columns(), totalNullBits(0), totalNullBytes(0), size(0) {}
     Schema(vector<SchemaEntry> columns);
+    void updateData();
     inline uint32_t getSize() const {
         return size;
     };
@@ -225,7 +227,7 @@ struct IntermediateTypeEntry {
 
 struct IntermediateType {
     vector<IntermediateTypeEntry> entries;
-    vector<bool> isAmbiguous;
+    set<string> isAmbiguous;
     IntermediateType() : entries(), isAmbiguous() {}
     IntermediateType(const Schema& schema, string tableName = "");
     int compare(const ValueArray& a, const ValueArray& b) const;

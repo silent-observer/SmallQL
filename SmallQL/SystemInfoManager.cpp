@@ -117,6 +117,10 @@ void SystemInfoManager::load() {
         SchemaEntry& entry = tables[tableId].schema.columns[columnId];
         indexes[make_pair(tableId, indexId)].schema.addColumn(entry);
     }
+
+    for (auto& index : indexes) {
+        index.second.schema.updateData();
+    }
 }
 
 uint16_t SystemInfoManager::addTable(string name) {
@@ -169,6 +173,7 @@ void SystemInfoManager::createPrimaryIndex(uint16_t tableId) {
     });
     indexesFile.addRecord(encoded);
     
+    tables[tableId].schema.updateData();
     Schema keySchema = tables[tableId].schema.primaryKeySubschema();
     tables[tableId].primaryKeys = keySchema;
     for (const auto& entry : keySchema.columns) {

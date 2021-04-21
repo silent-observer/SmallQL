@@ -45,3 +45,7 @@ static inline bool is(const shared_ptr<From>& x) {
 }
 
 class SQLException : public std::exception {};
+
+enum JoinType {
+    Cross
+};

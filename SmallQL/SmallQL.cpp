@@ -152,7 +152,7 @@ int main()
             string s;
             getline(cin, s);
             ss << s << " ";
-            if (s.back() == ';') break;
+            if (!s.empty() && s.back() == ';') break;
             cout << ". ";
         }
         cout << endl;

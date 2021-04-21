@@ -127,6 +127,7 @@ private:
     unique_ptr<ConditionNode> parseElementaryCondition();
     unique_ptr<ConditionNode> parseCompareCondition();
     unique_ptr<TableName> parseTableName();
+    unique_ptr<TableExpr> parseJoin();
     unique_ptr<InsertDataNode> parseInsertData();
     unique_ptr<InsertValuesNode> parseInsertValues();
     Value parseValue();

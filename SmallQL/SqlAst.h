@@ -128,6 +128,13 @@ struct OrConditionNode : public ConditionNode {
         const IntermediateType& type) const;
 };
 
+struct JoinNode : public TableExpr {
+    JoinType joinType;
+    unique_ptr<TableExpr> left, right;
+    virtual void prettyPrint(ostream& s, int level) const;
+    virtual QTablePtr algebrize(const SystemInfoManager& sysMan);
+};
+
 enum class CompareType {
     Equal,
     NotEqual,

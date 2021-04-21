@@ -68,6 +68,24 @@ void FuncExpr::prettyPrint(ostream& s, int level) const
     s << ")";
 }
 
+void JoinNode::prettyPrint(ostream& s, int level) const
+{
+    s << indent();
+    switch (joinType)
+    {
+    case JoinType::Cross:
+        s << "CROSS ";
+        break;
+    default:
+        break;
+    }
+    s << "JOIN {" << endl;
+    left->prettyPrint(s, level + 1);
+    s << indent() << "," << endl;
+    right->prettyPrint(s, level + 1);
+    s << indent() << "}" << endl;
+}
+
 void AndConditionNode::prettyPrint(ostream& s, int level) const
 {
     s << "(";

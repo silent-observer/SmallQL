@@ -25,6 +25,7 @@ public:
     virtual void visitFuncProjectionQNode(FuncProjectionQNode& n);
     virtual void visitFilterQNode(FilterQNode& n);
     virtual void visitUnionQNode(UnionQNode& n);
+    virtual void visitJoinQNode(JoinQNode& n);
     virtual void visitSelectorNode(SelectorNode& n);
     virtual void visitInserterNode(InserterNode& n);
     virtual void visitConstDataNode(ConstDataNode& n);
@@ -86,6 +87,16 @@ void PreparerVisitor::visitUnionQNode(UnionQNode& n) {
         newSources.push_back(exec->sequences[lastResult].get());
     }
     auto seq = make_unique<UnionDS>(n.type, newSources);
+    exec->sequences.push_back(move(seq));
+    lastResult = exec->sequences.size() - 1;
+}
+
+void PreparerVisitor::visitJoinQNode(JoinQNode& n) {
+    n.left->accept(this);
+    DataSequence* newLeft = exec->sequences[lastResult].get();
+    n.right->accept(this);
+    DataSequence* newRight = exec->sequences[lastResult].get();
+    auto seq = make_unique<CrossJoinDS>(n.type, newLeft, newRight);
     exec->sequences.push_back(move(seq));
     lastResult = exec->sequences.size() - 1;
 }

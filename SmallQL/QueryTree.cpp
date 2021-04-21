@@ -131,6 +131,26 @@ public:
         level--;
         cout << indent() << "]";
     }
+    virtual void visitJoinQNode(JoinQNode& n) {
+        cout << indent();
+        switch (n.joinType)
+        {
+        case JoinType::Cross:
+            cout << "Cross";
+            break;
+        default:
+            break;
+        }
+        cout << "Join[" << endl;
+        cout << indent1() << "Type: " << n.type << endl;
+        cout << indent() << "] <- [" << endl;
+        level++;
+        n.left->accept(this);
+        cout << indentM1() << "," << endl;
+        n.right->accept(this);
+        level--;
+        cout << indent() << "]";
+    }
     virtual void visitSelectorNode(SelectorNode& n) {
         cout << indent() << "SELECT" << endl;
         n.source->accept(this);

@@ -302,6 +302,12 @@ int Schema::compare(const char* a, const char* b) const {
 Schema::Schema(vector<SchemaEntry> columns)
     : columns(columns)
     , totalNullBits(0) {
+    updateData();
+}
+
+void Schema::updateData() {
+    totalNullBits = 0;
+
     for (int i = 0; i < this->columns.size(); i++) {
         this->columns[i].id = i;
         if (this->columns[i].canBeNull)
@@ -363,13 +369,6 @@ ValueArray Schema::decode(const char* data) const {
     return result;
 }
 void Schema::addColumn(SchemaEntry entry) {
-    entry.id = columns.size();
-    if (entry.canBeNull) {
-        entry.nullBit = totalNullBits++;
-        totalNullBytes = (totalNullBits + 7) / 8;
-    }
-    entry.offset = size;
-    size += entry.type->getSize();
     columns.push_back(entry);
 }
 
@@ -472,7 +471,6 @@ IntermediateType::IntermediateType(const Schema& schema, string tableName) {
         entry.canBeNull = schema.columns[i].canBeNull;
         entry.id = schema.columns[i].id;
         entries.push_back(entry);
-        isAmbiguous.push_back(false);
     }
 }
 
@@ -493,22 +491,20 @@ int IntermediateType::compare(const ValueArray& a, const ValueArray& b) const {
 }
 
 void IntermediateType::addEntry(const IntermediateTypeEntry& entry) {
-    bool ambiguous = false;
     for (int i = 0; i < entries.size(); i++)
         if (entry.columnName == entries[i].columnName) {
-            ambiguous = true;
+            isAmbiguous.insert(entry.columnName);
             break;
         }
     entries.push_back(entry);
     entries.back().id = entries.size() - 1;
-    isAmbiguous.push_back(ambiguous);
 }
 
 ostream& operator<<(ostream& os, const IntermediateType& type) {
     os << "[";
     for (int i = 0; i < type.entries.size(); i++) {
         if (i != 0) os << ", ";
-        if (type.isAmbiguous[i])
+        if (type.isAmbiguous.count(type.entries[i].columnName) != 0)
             os << type.entries[i].tableName << ".";
         os << type.entries[i].columnName << " " << *type.entries[i].type;
     }

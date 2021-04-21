@@ -123,6 +123,20 @@ public:
     virtual bool hasEnded() const;
 };
 
+class CrossJoinDS : public DataSequence {
+private:
+    DataSequence* left;
+    DataSequence* right;
+    unique_ptr<ValueArray> recordData;
+    int offset;
+    void update(bool newLeft);
+public:
+    CrossJoinDS(const IntermediateType& type, DataSequence* left, DataSequence* right);
+    virtual void reset();
+    virtual void advance();
+    virtual bool hasEnded() const;
+};
+
 class ConstTableDS : public DataSequence {
 private:
     vector<ValueArray> values;

@@ -73,18 +73,45 @@ QTablePtr TableName::algebrize(const SystemInfoManager& sysMan) {
     return result;
 }
 
+QTablePtr JoinNode::algebrize(const SystemInfoManager& sysMan) {
+    auto result = make_unique<JoinQNode>();
+    result->joinType = joinType;
+    result->left = left->algebrize(sysMan);
+    result->right = right->algebrize(sysMan);
+    result->type = result->left->type;
+    for (auto& entry : result->right->type.entries)
+        result->type.addEntry(entry);
+    return result;
+}
+
 QScalarPtr ColumnNameExpr::algebrizeWithContext(
         const SystemInfoManager& sysMan, const IntermediateType& type) const {
     auto result = make_unique<ColumnQNode>();
     result->name = name;
-    for (int i = 0; i < type.entries.size(); i++) {
-        if (type.entries[i].columnName == name) {
-            result->columnId = i;
-            result->type = type.entries[i];
-            return result;
+    if (tableName == "") {
+        if (type.isAmbiguous.count(name) != 0)
+            throw SemanticException("Column " + name + " is ambiguous, specify original table!");
+
+        for (int i = 0; i < type.entries.size(); i++) {
+            if (type.entries[i].columnName == name) {
+                result->columnId = i;
+                result->type = type.entries[i];
+                return result;
+            }
         }
+        throw SemanticException("Column " + name + " doesn't exist!");
     }
-    throw SemanticException("Column " + name + " doesn't exist!");
+    else {
+        for (int i = 0; i < type.entries.size(); i++) {
+            if (type.entries[i].columnName == name && type.entries[i].tableName == tableName) {
+                result->columnId = i;
+                result->type = type.entries[i];
+                return result;
+            }
+        }
+        throw SemanticException("Column " + tableName + "." + name + " doesn't exist!");
+    }
+    
 }
 
 QScalarPtr ConstExpr::algebrizeWithContext(

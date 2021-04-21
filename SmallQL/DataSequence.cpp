@@ -9,7 +9,6 @@ TableFullScanDS::TableFullScanDS(const Schema& schema, DataFile& data)
     , schema(schema)
     , DataSequence(IntermediateType(schema)) {
     record.record = recordData.get();
-    reset();
 }
 void TableFullScanDS::reset() {
     iter = makeConst(data).begin();
@@ -40,7 +39,6 @@ TableIndexScanDS::TableIndexScanDS(const Schema& schema, DataFile& data, IndexFi
     , recordData(make_unique<ValueArray>())
     , DataSequence(IntermediateType(schema)) {
     record.record = recordData.get();
-    reset();
 }
 void TableIndexScanDS::reset() {
     iter = index.getIterator(from);
@@ -71,12 +69,11 @@ bool TableIndexScanDS::hasEnded() const {
 ProjectorDS::ProjectorDS(const IntermediateType& type,
     DataSequence* source,
     vector<uint16_t> columns)
-    : source(move(source))
+    : source(source)
     , recordData(make_unique<ValueArray>(columns.size()))
     , columns(columns)
     , DataSequence(type) {
     record.record = recordData.get();
-    reset();
 }
 
 void ProjectorDS::reset() {
@@ -151,7 +148,7 @@ void CondCheckerVisitor::visitCompareConditionQNode(CompareConditionQNode& n) {
 FuncProjectorDS::FuncProjectorDS(const IntermediateType& type,
     DataSequence* source,
     vector<unique_ptr<QScalarNode>> funcs)
-    : source(move(source))
+    : source(source)
     , funcs()
     , recordData(make_unique<ValueArray>(type.entries.size()))
     , DataSequence(type) {
@@ -160,7 +157,6 @@ FuncProjectorDS::FuncProjectorDS(const IntermediateType& type,
         this->funcs.push_back(move(f));
     visitor = make_unique<ComputerVisitor>
         (type, *record.record);
-    update();
 }
 
 void FuncProjectorDS::reset() {
@@ -189,7 +185,7 @@ void FuncProjectorDS::update() {
 FilterDS::FilterDS(const IntermediateType& type,
     DataSequence* source,
     QCondPtr cond) 
-    : source(move(source))
+    : source(source)
     , cond(move(cond))
     , DataSequence(type) {
     record.type = this->source->getType();
@@ -222,7 +218,7 @@ void FilterDS::update() {
 
 UnionDS::UnionDS(const IntermediateType& type,
     vector<DataSequence*> sources) 
-    : sources(move(sources))
+    : sources(sources)
     , DataSequence(type) {
     record.type = this->sources[0]->getType();
 }
@@ -247,6 +243,49 @@ void UnionDS::update() {
         }
         currentIndex++;
     }
+}
+
+CrossJoinDS::CrossJoinDS(const IntermediateType& type, DataSequence* left, DataSequence* right)
+    : left(left)
+    , right(right)
+    , recordData(make_unique<ValueArray>(type.entries.size()))
+    , offset(left->getType().entries.size())
+    , DataSequence(type) {
+    record.record = recordData.get();
+}
+
+void CrossJoinDS::reset() {
+    left->reset();
+    right->reset();
+    update(true);
+}
+void CrossJoinDS::advance() {
+    if (left->hasEnded()) return;
+    if (right->hasEnded()) return;
+
+    right->advance();
+    if (right->hasEnded()) {
+        right->reset();
+        left->advance();
+        if (left->hasEnded()) return;
+        update(true);
+    }
+    else
+        update(false);
+    
+}
+bool CrossJoinDS::hasEnded() const {
+    return left->hasEnded();
+}
+void CrossJoinDS::update(bool newLeft) {
+    if (newLeft) {
+        const ValueArray& leftData = *left->get().record;
+        for (int i = 0; i < offset; i++)
+            (*recordData)[i] = leftData[i];
+    }
+    const ValueArray& rightData = *right->get().record;
+    for (int i = 0; i < rightData.size(); i++)
+        (*recordData)[offset + i] = rightData[i];
 }
 
 ConstTableDS::ConstTableDS(const IntermediateType& type,

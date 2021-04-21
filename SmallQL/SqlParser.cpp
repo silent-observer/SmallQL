@@ -66,7 +66,7 @@ unique_ptr<SelectNode> Parser::parseSelect() {
     }
     checkKeyword("FROM", "Expected FROM");
     l.advance();
-    result->from = parseTableName();
+    result->from = parseJoin();
     if (l.get().isKeyword("WHERE")) {
         l.advance();
         result->whereCond = parseCondition();
@@ -137,6 +137,25 @@ unique_ptr<TableName> Parser::parseTableName() {
     check(TokenType::Id, "Expected table name");
     auto result = l.createPtr<TableName>();
     result->name = l.pop().text;
+    return result;
+}
+
+unique_ptr<TableExpr> Parser::parseJoin() {
+    unique_ptr<TableExpr> result = parseTableName();
+    while (l.get().type == TokenType::Comma || l.get().isKeyword("CROSS")) {
+        if (l.get().type == TokenType::Comma)
+            l.advance();
+        else {
+            l.advance();
+            checkKeyword("JOIN", "Expected JOIN");
+            l.advance();
+        }
+        auto join = l.createPtr<JoinNode>();
+        join->joinType = JoinType::Cross;
+        join->left = move(result);
+        join->right = parseTableName();
+        result = move(join);
+    }
     return result;
 }
 
