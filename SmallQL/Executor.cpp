@@ -96,8 +96,14 @@ void PreparerVisitor::visitJoinQNode(JoinQNode& n) {
     DataSequence* newLeft = exec->sequences[lastResult].get();
     n.right->accept(this);
     DataSequence* newRight = exec->sequences[lastResult].get();
-    auto seq = make_unique<CrossJoinDS>(n.type, newLeft, newRight);
-    exec->sequences.push_back(move(seq));
+    if (n.joinType == JoinType::Cross) {
+        auto seq = make_unique<CrossJoinDS>(n.type, newLeft, newRight);
+        exec->sequences.push_back(move(seq));
+    }
+    else {
+        auto seq = make_unique<CondJoinDS>(n.type, newLeft, newRight, n.joinType, move(n.on));
+        exec->sequences.push_back(move(seq));
+    }
     lastResult = exec->sequences.size() - 1;
 }
 

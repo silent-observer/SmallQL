@@ -272,12 +272,72 @@ void CrossJoinDS::advance() {
     }
     else
         update(false);
-    
 }
 bool CrossJoinDS::hasEnded() const {
     return left->hasEnded();
 }
 void CrossJoinDS::update(bool newLeft) {
+    if (newLeft) {
+        const ValueArray& leftData = *left->get().record;
+        for (int i = 0; i < offset; i++)
+            (*recordData)[i] = leftData[i];
+    }
+    const ValueArray& rightData = *right->get().record;
+    for (int i = 0; i < rightData.size(); i++)
+        (*recordData)[offset + i] = rightData[i];
+}
+
+CondJoinDS::CondJoinDS(const IntermediateType& type, DataSequence* left, 
+        DataSequence* right, JoinType joinType, unique_ptr<QConditionNode> cond)
+    : left(left)
+    , right(right)
+    , joinType(joinType)
+    , recordData(make_unique<ValueArray>(type.entries.size()))
+    , offset(left->getType().entries.size())
+    , cond(move(cond))
+    , DataSequence(type) {
+    record.record = recordData.get();
+    visitor = make_unique<CondCheckerVisitor>(type, record.record);
+}
+
+void CondJoinDS::reset() {
+    left->reset();
+    right->reset();
+    update(true);
+    if (!hasEnded())
+        skipToNext();
+}
+void CondJoinDS::crossStep() {
+    right->advance();
+    if (right->hasEnded()) {
+        right->reset();
+        left->advance();
+        if (left->hasEnded()) return;
+        update(true);
+    }
+    else
+        update(false);
+}
+void CondJoinDS::skipToNext() {
+    while (true) {
+        if (left->hasEnded()) return;
+        if (right->hasEnded()) return;
+        cond->accept(visitor.get());
+        if (visitor->getResult()) break;
+
+        crossStep();
+    }
+}
+void CondJoinDS::advance() {
+    if (left->hasEnded()) return;
+    if (right->hasEnded()) return;
+    crossStep();
+    skipToNext();
+}
+bool CondJoinDS::hasEnded() const {
+    return left->hasEnded();
+}
+void CondJoinDS::update(bool newLeft) {
     if (newLeft) {
         const ValueArray& leftData = *left->get().record;
         for (int i = 0; i < offset; i++)

@@ -137,6 +137,26 @@ public:
     virtual bool hasEnded() const;
 };
 
+class CondJoinDS : public DataSequence {
+private:
+    JoinType joinType;
+    DataSequence* left;
+    DataSequence* right;
+    unique_ptr<QConditionNode> cond;
+    unique_ptr<CondCheckerVisitor> visitor;
+
+    unique_ptr<ValueArray> recordData;
+    int offset;
+    void update(bool newLeft);
+    void skipToNext();
+    void crossStep();
+public:
+    CondJoinDS(const IntermediateType& type, DataSequence* left, DataSequence* right, JoinType joinType, unique_ptr<QConditionNode> cond);
+    virtual void reset();
+    virtual void advance();
+    virtual bool hasEnded() const;
+};
+
 class ConstTableDS : public DataSequence {
 private:
     vector<ValueArray> values;

@@ -149,18 +149,41 @@ unique_ptr<TableName> Parser::parseTableName() {
 
 unique_ptr<TableExpr> Parser::parseJoin() {
     unique_ptr<TableExpr> result = parseTableName();
-    while (l.get().type == TokenType::Comma || l.get().isKeyword("CROSS")) {
-        if (l.get().type == TokenType::Comma)
+    while (l.get().type == TokenType::Comma || 
+            l.get().isKeyword("CROSS") || 
+            l.get().isKeyword("INNER") || 
+            l.get().isKeyword("JOIN")) {
+        auto join = l.createPtr<JoinNode>();
+        if (l.get().type == TokenType::Comma) {
+            join->joinType = JoinType::Cross;
             l.advance();
-        else {
+        } 
+        else if (l.get().text == "JOIN") {
+            join->joinType = JoinType::Inner;
+            l.advance();
+        }
+        else if (l.get().text == "CROSS" ||
+                 l.get().text == "INNER"){
+            if (l.get().text == "CROSS")
+                join->joinType = JoinType::Cross;
+            else if (l.get().text == "INNER")
+                join->joinType = JoinType::Inner;
             l.advance();
             checkKeyword("JOIN", "Expected JOIN");
             l.advance();
         }
-        auto join = l.createPtr<JoinNode>();
-        join->joinType = JoinType::Cross;
+
         join->left = move(result);
         join->right = parseTableName();
+
+        if (join->joinType == JoinType::Cross)
+            join->on = nullptr;
+        else {
+            checkKeyword("ON", "Expected ON");
+            l.advance();
+            join->on = parseCondition();
+        }
+
         result = move(join);
     }
     return result;

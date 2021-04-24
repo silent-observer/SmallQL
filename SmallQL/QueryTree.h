@@ -158,6 +158,7 @@ struct UnionQNode : public QTableNode {
 struct JoinQNode : public QTableNode {
     JoinType joinType;
     QTablePtr left, right;
+    QCondPtr on;
     JoinQNode() {}
     virtual void accept(Visitor* v) {
         v->visitJoinQNode(*this);

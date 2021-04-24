@@ -83,7 +83,7 @@ void Lexer::lexNumber() {
 const static set<string> KEYWORDS_SET = {
     "SELECT", "FROM", "INSERT", "INTO", "VALUES", "AS", "NOT",
     "AND", "OR", "WHERE", "CREATE", "TABLE", "PRIMARY", "KEY",
-    "NULL", "CROSS", "JOIN"
+    "NULL", "CROSS", "INNER", "JOIN", "ON"
 };
 
 const static set<string> TYPE_SET = {

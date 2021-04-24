@@ -76,10 +76,18 @@ void JoinNode::prettyPrint(ostream& s, int level) const
     case JoinType::Cross:
         s << "CROSS ";
         break;
+    case JoinType::Inner:
+        s << "INNER ";
+        break;
     default:
         break;
     }
     s << "JOIN {" << endl;
+    if (on) {
+        s << indent1() << "On: ";
+        on->prettyPrint(s, level + 1);
+        s << "," << endl;
+    }
     left->prettyPrint(s, level + 1);
     s << indent() << "," << endl;
     right->prettyPrint(s, level + 1);

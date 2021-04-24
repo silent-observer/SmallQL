@@ -132,6 +132,7 @@ struct OrConditionNode : public ConditionNode {
 struct JoinNode : public TableExpr {
     JoinType joinType;
     unique_ptr<TableExpr> left, right;
+    unique_ptr<ConditionNode> on;
     virtual void prettyPrint(ostream& s, int level) const;
     virtual QTablePtr algebrize(const SystemInfoManager& sysMan);
 };

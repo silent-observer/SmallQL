@@ -86,6 +86,10 @@ QTablePtr JoinNode::algebrize(const SystemInfoManager& sysMan) {
         result->type.addEntry(entry);
     for (auto& p : result->right->type.tableAliases)
         result->type.tableAliases.insert(p);
+    if (on)
+        result->on = on->algebrizeWithContext(sysMan, result->type);
+    else
+        result->on = nullptr;
     return result;
 }
 

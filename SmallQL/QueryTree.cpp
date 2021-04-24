@@ -143,6 +143,11 @@ public:
         }
         cout << "Join[" << endl;
         cout << indent1() << "Type: " << n.type << endl;
+        if (n.on) {
+            cout << indent1() << "On: ";
+            n.on->accept(condPrinter);
+            cout << endl;
+        }
         cout << indent() << "] <- [" << endl;
         level++;
         n.left->accept(this);
