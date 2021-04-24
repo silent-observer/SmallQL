@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <vector>
 #include <set>
+#include <map>
 #include <string>
 #include <memory>
 #include "Common.h"
@@ -228,7 +229,8 @@ struct IntermediateTypeEntry {
 struct IntermediateType {
     vector<IntermediateTypeEntry> entries;
     set<string> isAmbiguous;
-    IntermediateType() : entries(), isAmbiguous() {}
+    map<string, string> tableAliases;
+    IntermediateType() : entries(), isAmbiguous(), tableAliases() {}
     IntermediateType(const Schema& schema, string tableName = "");
     int compare(const ValueArray& a, const ValueArray& b) const;
     void addEntry(const IntermediateTypeEntry& entry);

@@ -70,6 +70,9 @@ QTablePtr TableName::algebrize(const SystemInfoManager& sysMan) {
     result->tableId = sysMan._getTableId(name);
     result->tableSchema = sysMan._getTableSchema(name);
     result->type = IntermediateType(result->tableSchema, name);
+    if (alias != "") {
+        result->type.tableAliases.emplace(alias, name);
+    }
     return result;
 }
 
@@ -81,6 +84,8 @@ QTablePtr JoinNode::algebrize(const SystemInfoManager& sysMan) {
     result->type = result->left->type;
     for (auto& entry : result->right->type.entries)
         result->type.addEntry(entry);
+    for (auto& p : result->right->type.tableAliases)
+        result->type.tableAliases.insert(p);
     return result;
 }
 
@@ -102,14 +107,17 @@ QScalarPtr ColumnNameExpr::algebrizeWithContext(
         throw SemanticException("Column " + name + " doesn't exist!");
     }
     else {
+        string actualName = tableName;
+        if (type.tableAliases.count(actualName) != 0)
+            actualName = type.tableAliases.at(actualName);
         for (int i = 0; i < type.entries.size(); i++) {
-            if (type.entries[i].columnName == name && type.entries[i].tableName == tableName) {
+            if (type.entries[i].columnName == name && type.entries[i].tableName == actualName) {
                 result->columnId = i;
                 result->type = type.entries[i];
                 return result;
             }
         }
-        throw SemanticException("Column " + tableName + "." + name + " doesn't exist!");
+        throw SemanticException("Column " + actualName + "." + name + " doesn't exist!");
     }
     
 }

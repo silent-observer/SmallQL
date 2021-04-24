@@ -71,6 +71,7 @@ struct SelectStmtNode : public StatementNode {
 
 struct TableName : public TableExpr {
     string name;
+    string alias;
     virtual void prettyPrint(ostream& s, int level) const;
     virtual QTablePtr algebrize(const SystemInfoManager& sysMan);
 };

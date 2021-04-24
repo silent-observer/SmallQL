@@ -137,6 +137,13 @@ unique_ptr<TableName> Parser::parseTableName() {
     check(TokenType::Id, "Expected table name");
     auto result = l.createPtr<TableName>();
     result->name = l.pop().text;
+    if (l.get().isKeyword("AS")) {
+        l.advance();
+        check(TokenType::Id, "Expected table alias");
+        result->alias = l.pop().text;
+    }
+    else
+        result->alias = "";
     return result;
 }
 
