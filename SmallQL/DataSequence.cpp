@@ -287,14 +287,16 @@ void CrossJoinDS::update(bool newLeft) {
         (*recordData)[offset + i] = rightData[i];
 }
 
-CondJoinDS::CondJoinDS(const IntermediateType& type, DataSequence* left, 
-        DataSequence* right, JoinType joinType, unique_ptr<QConditionNode> cond)
+CondJoinDS::CondJoinDS(const IntermediateType& type, DataSequence* left,
+    DataSequence* right, JoinType joinType, unique_ptr<QConditionNode> cond)
     : left(left)
     , right(right)
     , joinType(joinType)
     , recordData(make_unique<ValueArray>(type.entries.size()))
     , offset(left->getType().entries.size())
     , cond(move(cond))
+    , noPair(true)
+    , hasJustAddedNull(false)
     , DataSequence(type) {
     record.record = recordData.get();
     visitor = make_unique<CondCheckerVisitor>(type, record.record);
@@ -308,9 +310,21 @@ void CondJoinDS::reset() {
         skipToNext();
 }
 void CondJoinDS::crossStep() {
+    if (hasJustAddedNull) {
+        hasJustAddedNull = false;
+        left->advance();
+        if (left->hasEnded()) return;
+        update(true);
+        return;
+    }
+
     right->advance();
     if (right->hasEnded()) {
         right->reset();
+        if (noPair && joinType == JoinType::Left) {
+            updateNull();
+            return;
+        }
         left->advance();
         if (left->hasEnded()) return;
         update(true);
@@ -320,16 +334,18 @@ void CondJoinDS::crossStep() {
 }
 void CondJoinDS::skipToNext() {
     while (true) {
-        if (left->hasEnded()) return;
+        if (left->hasEnded() && (joinType == JoinType::Inner || !noPair)) return;
         if (right->hasEnded()) return;
         cond->accept(visitor.get());
         if (visitor->getResult()) break;
 
         crossStep();
+        if (hasJustAddedNull) break;
     }
+    noPair = false;
 }
 void CondJoinDS::advance() {
-    if (left->hasEnded()) return;
+    if (left->hasEnded() && (joinType == JoinType::Inner || !noPair)) return;
     if (right->hasEnded()) return;
     crossStep();
     skipToNext();
@@ -342,10 +358,17 @@ void CondJoinDS::update(bool newLeft) {
         const ValueArray& leftData = *left->get().record;
         for (int i = 0; i < offset; i++)
             (*recordData)[i] = leftData[i];
+        noPair = true;
     }
     const ValueArray& rightData = *right->get().record;
     for (int i = 0; i < rightData.size(); i++)
         (*recordData)[offset + i] = rightData[i];
+}
+void CondJoinDS::updateNull() {
+    for (int i = offset; i < recordData->size(); i++)
+        (*recordData)[i] = Value(ValueType::Null);
+    noPair = false;
+    hasJustAddedNull = true;
 }
 
 ConstTableDS::ConstTableDS(const IntermediateType& type,

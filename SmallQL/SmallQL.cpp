@@ -168,16 +168,16 @@ int main()
         try {
             Parser parser(text);
             auto parsed = parser.parse();
-            cout << parsed->prettyPrint();
+            //cout << parsed->prettyPrint();
 
             if (!tryDDL(parsed, sysMan)) {
                 auto qtree = parsed->algebrize(sysMan);
-                cout << endl << "Before optimization:" << endl << endl;
-                print(qtree);
+                //cout << endl << "Before optimization:" << endl << endl;
+                //print(qtree);
                 optimize(qtree, sysMan);
-                cout << endl << "After optimization:" << endl << endl;
-                print(qtree);
-                cout << endl;
+                //cout << endl << "After optimization:" << endl << endl;
+                //print(qtree);
+                //cout << endl;
                 Executor exec(sysMan);
                 exec.prepare(move(qtree));
                 auto result = exec.execute();

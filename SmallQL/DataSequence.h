@@ -147,7 +147,10 @@ private:
 
     unique_ptr<ValueArray> recordData;
     int offset;
+    bool noPair;
+    bool hasJustAddedNull;
     void update(bool newLeft);
+    void updateNull();
     void skipToNext();
     void crossStep();
 public:

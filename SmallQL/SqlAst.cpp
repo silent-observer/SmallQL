@@ -79,7 +79,8 @@ void JoinNode::prettyPrint(ostream& s, int level) const
     case JoinType::Inner:
         s << "INNER ";
         break;
-    default:
+    case JoinType::Left:
+        s << "LEFT ";
         break;
     }
     s << "JOIN {" << endl;

@@ -150,8 +150,9 @@ unique_ptr<TableName> Parser::parseTableName() {
 unique_ptr<TableExpr> Parser::parseJoin() {
     unique_ptr<TableExpr> result = parseTableName();
     while (l.get().type == TokenType::Comma || 
-            l.get().isKeyword("CROSS") || 
-            l.get().isKeyword("INNER") || 
+            l.get().isKeyword("CROSS") ||
+            l.get().isKeyword("INNER") ||
+            l.get().isKeyword("LEFT") ||
             l.get().isKeyword("JOIN")) {
         auto join = l.createPtr<JoinNode>();
         if (l.get().type == TokenType::Comma) {
@@ -163,11 +164,14 @@ unique_ptr<TableExpr> Parser::parseJoin() {
             l.advance();
         }
         else if (l.get().text == "CROSS" ||
-                 l.get().text == "INNER"){
+                 l.get().text == "INNER" ||
+                 l.get().text == "LEFT"){
             if (l.get().text == "CROSS")
                 join->joinType = JoinType::Cross;
             else if (l.get().text == "INNER")
                 join->joinType = JoinType::Inner;
+            else if (l.get().text == "LEFT")
+                join->joinType = JoinType::Left;
             l.advance();
             checkKeyword("JOIN", "Expected JOIN");
             l.advance();

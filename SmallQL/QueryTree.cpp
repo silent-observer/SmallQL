@@ -138,7 +138,11 @@ public:
         case JoinType::Cross:
             cout << "Cross";
             break;
-        default:
+        case JoinType::Inner:
+            cout << "Inner";
+            break;
+        case JoinType::Left:
+            cout << "Left";
             break;
         }
         cout << "Join[" << endl;
