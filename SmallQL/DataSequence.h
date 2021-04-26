@@ -149,10 +149,20 @@ private:
     int offset;
     bool noPair;
     bool hasJustAddedNull;
+
+    bool isLeftJoin, isRightJoin;
+
+    vector<bool> rightNulls;
+    int rightIndex;
+    bool isFillingRight;
+    bool rightNullWalk;
+
     void update(bool newLeft);
-    void updateNull();
+    void updateLeftNull();
+    void updateRightNull();
     void skipToNext();
     void crossStep();
+    void rightNullStep();
 public:
     CondJoinDS(const IntermediateType& type, DataSequence* left, DataSequence* right, JoinType joinType, unique_ptr<QConditionNode> cond);
     virtual void reset();

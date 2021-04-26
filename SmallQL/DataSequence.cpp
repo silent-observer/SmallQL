@@ -297,6 +297,12 @@ CondJoinDS::CondJoinDS(const IntermediateType& type, DataSequence* left,
     , cond(move(cond))
     , noPair(true)
     , hasJustAddedNull(false)
+    , rightIndex(0)
+    , rightNulls()
+    , isLeftJoin(joinType == JoinType::Left || joinType == JoinType::Full)
+    , isRightJoin(joinType == JoinType::Right || joinType == JoinType::Full)
+    , isFillingRight(isRightJoin)
+    , rightNullWalk(false)
     , DataSequence(type) {
     record.record = recordData.get();
     visitor = make_unique<CondCheckerVisitor>(type, record.record);
@@ -306,14 +312,26 @@ void CondJoinDS::reset() {
     left->reset();
     right->reset();
     update(true);
-    if (!hasEnded())
+    if (!hasEnded()) {
+        if (isFillingRight) {
+            rightNulls.push_back(true);
+        }
         skipToNext();
+    }
 }
 void CondJoinDS::crossStep() {
     if (hasJustAddedNull) {
         hasJustAddedNull = false;
         left->advance();
-        if (left->hasEnded()) return;
+        if (left->hasEnded()) {
+            if (isRightJoin) {
+                rightNullWalk = true;
+                updateRightNull();
+                rightIndex = 0;
+                rightNullStep();
+            }
+            return;
+        }
         update(true);
         return;
     }
@@ -321,37 +339,62 @@ void CondJoinDS::crossStep() {
     right->advance();
     if (right->hasEnded()) {
         right->reset();
-        if (noPair && joinType == JoinType::Left) {
-            updateNull();
+        if (noPair && isLeftJoin) {
+            rightIndex = 0;
+            updateLeftNull();
             return;
         }
         left->advance();
-        if (left->hasEnded()) return;
+        if (left->hasEnded()) {
+            if (isRightJoin) {
+                rightNullWalk = true;
+                updateRightNull();
+                rightIndex = 0;
+                rightNullStep();
+            }
+            return;
+        }
         update(true);
+        isFillingRight = false;
+        rightIndex = 0;
     }
-    else
+    else {
         update(false);
+        rightIndex++;
+        if (isFillingRight)
+            rightNulls.push_back(true);
+    }
 }
 void CondJoinDS::skipToNext() {
     while (true) {
-        if (left->hasEnded() && (joinType == JoinType::Inner || !noPair)) return;
+        if (left->hasEnded() && (!isLeftJoin || !noPair)) return;
         if (right->hasEnded()) return;
         cond->accept(visitor.get());
         if (visitor->getResult()) break;
 
         crossStep();
-        if (hasJustAddedNull) break;
+        if (hasJustAddedNull) return;
     }
     noPair = false;
+    if (isRightJoin) {
+        rightNulls[rightIndex] = false;
+    }
 }
 void CondJoinDS::advance() {
-    if (left->hasEnded() && (joinType == JoinType::Inner || !noPair)) return;
+    if (left->hasEnded() && (!isLeftJoin || !noPair)) {
+        if (isRightJoin && left->hasEnded()) {
+            right->advance();
+
+            rightNullStep();
+        }
+        return;
+    }
     if (right->hasEnded()) return;
     crossStep();
     skipToNext();
 }
 bool CondJoinDS::hasEnded() const {
-    return left->hasEnded();
+    return left->hasEnded() && !rightNullWalk;
 }
 void CondJoinDS::update(bool newLeft) {
     if (newLeft) {
@@ -364,11 +407,25 @@ void CondJoinDS::update(bool newLeft) {
     for (int i = 0; i < rightData.size(); i++)
         (*recordData)[offset + i] = rightData[i];
 }
-void CondJoinDS::updateNull() {
+void CondJoinDS::updateLeftNull() {
     for (int i = offset; i < recordData->size(); i++)
         (*recordData)[i] = Value(ValueType::Null);
     noPair = false;
     hasJustAddedNull = true;
+}
+void CondJoinDS::updateRightNull() {
+    for (int i = 0; i < offset; i++)
+        (*recordData)[i] = Value(ValueType::Null);
+}
+void CondJoinDS::rightNullStep() {
+    while (!right->hasEnded() && !rightNulls[rightIndex]) {
+        right->advance();
+        rightIndex++;
+    }
+    if (right->hasEnded())
+        rightNullWalk = false;
+    else
+        update(false);
 }
 
 ConstTableDS::ConstTableDS(const IntermediateType& type,

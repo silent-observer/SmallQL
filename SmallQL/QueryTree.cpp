@@ -144,6 +144,12 @@ public:
         case JoinType::Left:
             cout << "Left";
             break;
+        case JoinType::Right:
+            cout << "Right";
+            break;
+        case JoinType::Full:
+            cout << "Full";
+            break;
         }
         cout << "Join[" << endl;
         cout << indent1() << "Type: " << n.type << endl;

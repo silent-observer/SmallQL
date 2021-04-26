@@ -82,6 +82,12 @@ void JoinNode::prettyPrint(ostream& s, int level) const
     case JoinType::Left:
         s << "LEFT ";
         break;
+    case JoinType::Right:
+        s << "RIGHT ";
+        break;
+    case JoinType::Full:
+        s << "FULL ";
+        break;
     }
     s << "JOIN {" << endl;
     if (on) {

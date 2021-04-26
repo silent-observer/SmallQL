@@ -49,5 +49,7 @@ class SQLException : public std::exception {};
 enum JoinType {
     Cross,
     Inner,
-    Left
+    Left,
+    Right,
+    Full
 };
