@@ -11,6 +11,7 @@
 #include "Executor.h"
 #include "Optimizer.h"
 #include "DDLExecutor.h"
+#include "PrettyTablePrinter.h"
 
 #include <set>
 #include <ctime>
@@ -181,12 +182,7 @@ int main()
                 Executor exec(sysMan);
                 exec.prepare(move(qtree));
                 auto result = exec.execute();
-                if (result.size() == 0)
-                    cout << "<empty set>" << endl;
-                else
-                    for (const auto& row : result) {
-                        cout << row << endl;
-                    }
+                cout << prettyPrintTable(result, exec.resultType);
             }
         }
         catch (const SQLException& e) {

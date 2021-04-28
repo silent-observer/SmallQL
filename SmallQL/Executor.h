@@ -24,6 +24,7 @@ public:
     SystemInfoManager& sysMan;
     QueryType queryType;
     uint16_t tableId;
+    IntermediateType resultType;
 
     Executor(SystemInfoManager& sysMan): sysMan(sysMan) {}
     void prepare(QTablePtr tree);

@@ -35,6 +35,7 @@ public:
 void Executor::prepare(QTablePtr tree) {
     auto v = make_unique<PreparerVisitor>(this);
     tree->accept(v.get());
+    resultType = tree->type;
 }
 
 void PreparerVisitor::visitReadTableQNode(ReadTableQNode& n) {

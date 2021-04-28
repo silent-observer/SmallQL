@@ -148,6 +148,7 @@
     <ClCompile Include="DDLExecutor.cpp" />
     <ClCompile Include="Executor.cpp" />
     <ClCompile Include="IndexFile.cpp" />
+    <ClCompile Include="PrettyTablePrinter.cpp" />
     <ClCompile Include="QueryTree.cpp" />
     <ClCompile Include="TableReadOptimizer.cpp" />
     <ClCompile Include="Pager.cpp" />
@@ -169,6 +170,7 @@
     <ClInclude Include="IndexFilePrivate.h" />
     <ClInclude Include="Optimizer.h" />
     <ClInclude Include="Pager.h" />
+    <ClInclude Include="PrettyTablePrinter.h" />
     <ClInclude Include="QueryTree.h" />
     <ClInclude Include="SqlAst.h" />
     <ClInclude Include="SqlParser.h" />
