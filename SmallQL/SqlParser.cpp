@@ -71,6 +71,29 @@ unique_ptr<SelectNode> Parser::parseSelect() {
         l.advance();
         result->whereCond = parseCondition();
     }
+    if (l.get().isKeyword("ORDER")) {
+        l.advance();
+        checkKeyword("BY", "Expected BY");
+        l.advance();
+        bool isFirst = true;
+        while (isFirst || l.get().type == TokenType::Comma) {
+            if (!isFirst) {
+                l.advance();
+            }
+            isFirst = false;
+            auto expr = parseExpr();
+            bool isDesc = false;
+            if (l.get().isKeyword("ASC")) {
+                l.advance();
+            }
+            else if (l.get().isKeyword("DESC")) {
+                l.advance();
+                isDesc = true;
+            }
+            result->orderBy.push_back(make_pair(move(expr), isDesc));
+        }
+    }
+
     check(TokenType::Semicolon, "Expected semicolon");
     return result;
 }

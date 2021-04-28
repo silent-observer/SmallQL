@@ -166,6 +166,19 @@ public:
         level--;
         cout << indent() << "]";
     }
+    virtual void visitSorterQNode(SorterQNode& n) {
+        cout << indent() << "Sorter[" << endl;
+        cout << indent1() << "Sort plan: ";
+        for (const auto& p : n.cmpPlan) {
+            cout << p.first << (p.second ? "v" : "^") << " ";
+        }
+        cout << endl;
+        cout << indent1() << "Type: " << n.type << endl;
+        cout << indent() << "] <-" << endl;
+        level++;
+        n.source->accept(this);
+        level--;
+    }
     virtual void visitSelectorNode(SelectorNode& n) {
         cout << indent() << "SELECT" << endl;
         n.source->accept(this);

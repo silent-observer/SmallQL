@@ -39,6 +39,7 @@ struct FuncProjectionQNode;
 struct FilterQNode;
 struct UnionQNode;
 struct JoinQNode;
+struct SorterQNode;
 struct SelectorNode;
 struct InserterNode;
 struct ConstDataNode;
@@ -59,6 +60,7 @@ public:
     virtual void visitFilterQNode(FilterQNode& n) = 0;
     virtual void visitUnionQNode(UnionQNode& n) = 0;
     virtual void visitJoinQNode(JoinQNode& n) = 0;
+    virtual void visitSorterQNode(SorterQNode& n) = 0;
     virtual void visitSelectorNode(SelectorNode& n) = 0;
     virtual void visitInserterNode(InserterNode& n) = 0;
     virtual void visitConstDataNode(ConstDataNode& n) = 0;
@@ -165,6 +167,15 @@ struct JoinQNode : public QTableNode {
     }
 };
 
+struct SorterQNode : public QTableNode {
+    vector<pair<int, bool>> cmpPlan;
+    QTablePtr source;
+    SorterQNode() {}
+    virtual void accept(Visitor* v) {
+        v->visitSorterQNode(*this);
+    }
+};
+
 struct SelectorNode : public QTableNode {
     QTablePtr source;
     SelectorNode() {}
@@ -255,6 +266,12 @@ public:
         n.left->accept(this);
         qPtr = &n.right;
         n.right->accept(this);
+        qPtr = oldQPtr;
+    }
+    virtual void visitSorterQNode(SorterQNode& n) {
+        auto oldQPtr = qPtr;
+        qPtr = &n.source;
+        n.source->accept(this);
         qPtr = oldQPtr;
     }
     virtual void visitSelectorNode(SelectorNode& n) {

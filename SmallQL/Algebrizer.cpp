@@ -20,6 +20,19 @@ QTablePtr SelectNode::algebrize(const SystemInfoManager& sysMan) {
         filter->source = move(source);
         source = move(filter);
     }
+    if (orderBy.size() > 0) {
+        auto sorter = make_unique<SorterQNode>();
+        sorter->type = source->type;
+        for (const auto& p : orderBy) {
+            auto colExpr = p.first->algebrizeWithContext(sysMan, source->type);
+            if (auto col = convert<ColumnQNode>(colExpr)) {
+                sorter->cmpPlan.push_back(make_pair(col->columnId, p.second));
+            }
+        }
+        sorter->source = move(source);
+        source = move(sorter);
+    }
+
     if (!isStar) {
         auto projection = make_unique<ProjectionQNode>();
         auto funcProjection = make_unique<FuncProjectionQNode>();

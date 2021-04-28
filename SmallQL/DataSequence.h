@@ -170,6 +170,19 @@ public:
     virtual bool hasEnded() const;
 };
 
+class SorterDS : public DataSequence {
+private:
+    DataSequence* source;
+    vector<ValueArray> values;
+    int index;
+    vector<pair<int, bool>> cmpPlan;
+public:
+    SorterDS(const IntermediateType& type, DataSequence* source, vector<pair<int, bool>> cmpPlan);
+    virtual void reset();
+    virtual void advance();
+    virtual bool hasEnded() const;
+};
+
 class ConstTableDS : public DataSequence {
 private:
     vector<ValueArray> values;

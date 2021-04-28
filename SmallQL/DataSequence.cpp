@@ -1,6 +1,7 @@
 #include "DataSequence.h"
 #include "QueryTree.h"
 #include "ComputerVisitor.h"
+#include <algorithm>
 
 TableFullScanDS::TableFullScanDS(const Schema& schema, DataFile& data)
     : data(data)
@@ -427,6 +428,47 @@ void CondJoinDS::rightNullStep() {
     else
         update(false);
 }
+
+
+SorterDS::SorterDS(const IntermediateType& type,
+    DataSequence* source,
+    vector<pair<int, bool>> cmpPlan) 
+    : source(source)
+    , cmpPlan(cmpPlan)
+    , index(0)
+    , values()
+    , DataSequence(type) {
+    record.type = this->source->getType();
+}
+void SorterDS::reset() {
+    source->reset();
+    while (!source->hasEnded()) {
+        values.push_back(*source->get().record);
+        source->advance();
+    }
+    sort(values.begin(), values.end(), [&](const ValueArray& a, const ValueArray& b) {
+        for (const auto& p : cmpPlan) {
+            const auto& entry = record.type.entries[p.first];
+            int r = entry.compare(a[p.first], b[p.first]);
+            if (r == 0) continue;
+            return (r < 0) != p.second;
+        }
+        return false;
+    });
+    index = 0;
+    if (values.size() != 0)
+        record.record = &values[0];
+}
+void SorterDS::advance() {
+    if (index == values.size()) return;
+    index++;
+    if (index == values.size()) return;
+    record.record = &values[index];
+}
+bool SorterDS::hasEnded() const {
+    return index == values.size();
+}
+
 
 ConstTableDS::ConstTableDS(const IntermediateType& type,
     vector<ValueArray> values)

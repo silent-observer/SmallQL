@@ -26,6 +26,7 @@ public:
     virtual void visitFilterQNode(FilterQNode& n);
     virtual void visitUnionQNode(UnionQNode& n);
     virtual void visitJoinQNode(JoinQNode& n);
+    virtual void visitSorterQNode(SorterQNode& n);
     virtual void visitSelectorNode(SelectorNode& n);
     virtual void visitInserterNode(InserterNode& n);
     virtual void visitConstDataNode(ConstDataNode& n);
@@ -104,6 +105,15 @@ void PreparerVisitor::visitJoinQNode(JoinQNode& n) {
         auto seq = make_unique<CondJoinDS>(n.type, newLeft, newRight, n.joinType, move(n.on));
         exec->sequences.push_back(move(seq));
     }
+    lastResult = exec->sequences.size() - 1;
+}
+
+void PreparerVisitor::visitSorterQNode(SorterQNode& n) {
+    n.source->accept(this);
+    uint32_t sourceId = lastResult;
+    auto seq = make_unique<SorterDS>(
+        n.type, exec->sequences[sourceId].get(), n.cmpPlan);
+    exec->sequences.push_back(move(seq));
     lastResult = exec->sequences.size() - 1;
 }
 

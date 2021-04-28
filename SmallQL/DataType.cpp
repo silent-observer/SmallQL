@@ -482,9 +482,13 @@ int Schema::compare(const ValueArray& a, const ValueArray& b) const {
     return 0;
 }
 
+int IntermediateTypeEntry::compare(const Value& a, const Value& b) const {
+    return compareValue(a, b);
+}
+
 int IntermediateType::compare(const ValueArray& a, const ValueArray& b) const {
     for (int i = 0; i < a.size(); i++) {
-        int x = compareValue(a[i], b[i]);
+        int x = entries[i].compare(a[i], b[i]);
         if (x != 0) return x;
     }
     return 0;

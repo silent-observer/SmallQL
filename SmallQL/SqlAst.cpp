@@ -26,12 +26,22 @@ void SelectNode::prettyPrint(ostream& s, int level) const
     s << indent() << "} FROM {" << endl;
     from->prettyPrint(s, level + 1);
     if (whereCond) {
-        s << indent() << "} WHERE " << endl << indent();
+        s << indent() << "} WHERE {" << endl << indent();
         whereCond->prettyPrint(s, level);
         s << endl;
     }
-    else
-        s << indent() << "}" << endl;
+    if (orderBy.size() > 0) {
+        s << indent() << "} ORDER BY {" << endl;
+        for (const auto& p : orderBy) {
+            s << indent1();
+            p.first->prettyPrint(s, level);
+            s << (p.second ? " DESC" : " ASC") << endl;
+        }
+        whereCond->prettyPrint(s, level);
+        s << endl;
+    }
+    
+    s << indent() << "}" << endl;
 }
 
 void SelectStmtNode::prettyPrint(ostream& s, int level) const

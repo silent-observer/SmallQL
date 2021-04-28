@@ -59,6 +59,7 @@ struct SelectNode : public QueryNode {
     bool isStar;
     vector<pair<unique_ptr<ExprNode>, string>> columns;
     unique_ptr<ConditionNode> whereCond;
+    vector<pair<unique_ptr<ExprNode>, bool>> orderBy;
     virtual void prettyPrint(ostream& s, int level) const;
     virtual QTablePtr algebrize(const SystemInfoManager& sysMan);
 };

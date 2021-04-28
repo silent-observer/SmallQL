@@ -224,6 +224,7 @@ struct IntermediateTypeEntry {
         , type(type)
         , id(-1)
         , canBeNull(canBeNull) {}
+    int compare(const Value& a, const Value& b) const;
 };
 
 struct IntermediateType {
