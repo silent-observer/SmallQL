@@ -7,7 +7,15 @@ void ComputerVisitor::visitColumnQNode(ColumnQNode& n) {
     result = record[n.columnId];
 }
 void ComputerVisitor::visitFuncQNode(FuncQNode& n) {
-    if (n.name == "+" || n.name == "-" || n.name == "*" || n.name == "/") {
+    if (n.children.size() == 1 && n.name == "-") {
+        bool isDouble = is<DoubleType>(n.type.type);
+        n.children[0]->accept(this);
+        if (isDouble)
+            result.doubleVal = -result.doubleVal;
+        else
+            result.intVal = -result.intVal;
+    }
+    else if (n.name == "+" || n.name == "-" || n.name == "*" || n.name == "/") {
         char c = n.name[0];
         bool isDouble = is<DoubleType>(n.type.type);
 

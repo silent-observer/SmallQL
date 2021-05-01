@@ -274,7 +274,14 @@ unique_ptr<FuncExpr> Parser::parseFuncExpr() {
 }
 
 unique_ptr<ExprNode> Parser::parseAtomicExpr() {
-    if (l.get().type == TokenType::LParen) {
+    if (l.get().type == TokenType::Minus) {
+        auto result = l.createPtr<FuncExpr>();
+        l.advance();
+        result->name = "-";
+        result->children.push_back(parseAtomicExpr());
+        return result;
+    }
+    else if (l.get().type == TokenType::LParen) {
         l.advance();
         auto result = parseExpr();
         check(TokenType::RParen, "Expected right parenthesis");
