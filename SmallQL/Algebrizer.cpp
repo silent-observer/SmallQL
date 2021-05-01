@@ -61,29 +61,40 @@ QTablePtr SelectNode::algebrize(const SystemInfoManager& sysMan) {
             funcId++;
         }
     }
-    if (funcProjection->funcs.size() > 0) {
-        funcProjection->source = move(source);
-        projection->source = move(funcProjection);
-    }
-    else {
-        projection->source = move(source);
-    }
 
 
+    unique_ptr<SorterQNode> sorter = nullptr;
     if (orderBy.size() > 0) {
-        auto sorter = make_unique<SorterQNode>();
-        sorter->type = projection->source->type;
+        sorter = make_unique<SorterQNode>();
+        sorter->type = funcProjection->type;
         for (const auto& p : orderBy) {
-            auto colExpr = p.first->algebrizeWithContext(sysMan, projection->source->type);
+            auto colExpr = p.first->algebrizeWithContext(sysMan, funcProjection->type);
             if (auto col = convert<ColumnQNode>(colExpr)) {
                 sorter->cmpPlan.push_back(make_pair(col->columnId, p.second));
             }
+            else {
+                IntermediateTypeEntry scalar = colExpr->type;
+                funcProjection->type.addEntry(scalar);
+                funcProjection->funcs.push_back(move(colExpr));
+                sorter->cmpPlan.push_back(make_pair(funcId, p.second));
+                sorter->type.addEntry(scalar);
+                funcId++;
+            }
         }
-        sorter->source = move(projection->source);
-        projection->source = move(sorter);
     }
 
 
+    if (funcProjection->funcs.size() > 0) {
+        funcProjection->source = move(source);
+        source = move(funcProjection);
+    }
+    if (sorter) {
+        sorter->source = move(source);
+        source = move(sorter);
+    }
+
+    
+    projection->source = move(source);
     source = move(projection);
     result->source = move(source);
     result->type = result->source->type;
