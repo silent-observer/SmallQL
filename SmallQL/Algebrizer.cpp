@@ -20,18 +20,6 @@ QTablePtr SelectNode::algebrize(const SystemInfoManager& sysMan) {
         filter->source = move(source);
         source = move(filter);
     }
-    if (orderBy.size() > 0) {
-        auto sorter = make_unique<SorterQNode>();
-        sorter->type = source->type;
-        for (const auto& p : orderBy) {
-            auto colExpr = p.first->algebrizeWithContext(sysMan, source->type);
-            if (auto col = convert<ColumnQNode>(colExpr)) {
-                sorter->cmpPlan.push_back(make_pair(col->columnId, p.second));
-            }
-        }
-        sorter->source = move(source);
-        source = move(sorter);
-    }
 
     
     auto projection = make_unique<ProjectionQNode>();
@@ -65,9 +53,9 @@ QTablePtr SelectNode::algebrize(const SystemInfoManager& sysMan) {
         }
         else {
             IntermediateTypeEntry scalar = colExpr->type;
+            scalar.columnName = alias;
             funcProjection->type.addEntry(scalar);
             funcProjection->funcs.push_back(move(colExpr));
-            scalar.columnName = alias;
             projection->columns.push_back(funcId);
             projection->type.addEntry(scalar);
             funcId++;
@@ -80,6 +68,22 @@ QTablePtr SelectNode::algebrize(const SystemInfoManager& sysMan) {
     else {
         projection->source = move(source);
     }
+
+
+    if (orderBy.size() > 0) {
+        auto sorter = make_unique<SorterQNode>();
+        sorter->type = projection->source->type;
+        for (const auto& p : orderBy) {
+            auto colExpr = p.first->algebrizeWithContext(sysMan, projection->source->type);
+            if (auto col = convert<ColumnQNode>(colExpr)) {
+                sorter->cmpPlan.push_back(make_pair(col->columnId, p.second));
+            }
+        }
+        sorter->source = move(projection->source);
+        projection->source = move(sorter);
+    }
+
+
     source = move(projection);
     result->source = move(source);
     result->type = result->source->type;
