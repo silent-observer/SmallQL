@@ -27,6 +27,8 @@ public:
     virtual void visitUnionQNode(UnionQNode& n);
     virtual void visitJoinQNode(JoinQNode& n);
     virtual void visitSorterQNode(SorterQNode& n);
+    virtual void visitGroupifierQNode(GroupifierQNode& n);
+    virtual void visitDegroupifierQNode(DegroupifierQNode& n);
     virtual void visitSelectorNode(SelectorNode& n);
     virtual void visitInserterNode(InserterNode& n);
     virtual void visitConstDataNode(ConstDataNode& n);
@@ -114,6 +116,24 @@ void PreparerVisitor::visitSorterQNode(SorterQNode& n) {
     uint32_t sourceId = lastResult;
     auto seq = make_unique<SorterDS>(
         n.type, exec->sequences[sourceId].get(), n.cmpPlan);
+    exec->sequences.push_back(move(seq));
+    lastResult = exec->sequences.size() - 1;
+}
+
+void PreparerVisitor::visitGroupifierQNode(GroupifierQNode& n) {
+    n.source->accept(this);
+    uint32_t sourceId = lastResult;
+    auto seq = make_unique<GroupifierDS>(
+        n.type, n.groupPlan, exec->sequences[sourceId].get());
+    exec->groupSequences.push_back(move(seq));
+    lastResult = exec->groupSequences.size() - 1;
+}
+
+void PreparerVisitor::visitDegroupifierQNode(DegroupifierQNode& n) {
+    n.source->accept(this);
+    uint32_t sourceId = lastResult;
+    auto seq = make_unique<DegroupifierDS>(
+        n.type, exec->groupSequences[sourceId].get());
     exec->sequences.push_back(move(seq));
     lastResult = exec->sequences.size() - 1;
 }

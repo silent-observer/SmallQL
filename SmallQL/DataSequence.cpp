@@ -84,7 +84,8 @@ void ProjectorDS::reset() {
 }
 void ProjectorDS::advance() {
     source->advance();
-    update();
+    if (!source->hasEnded())
+        update();
 }
 bool ProjectorDS::hasEnded() const {
     return source->hasEnded();
@@ -167,7 +168,8 @@ void FuncProjectorDS::reset() {
 }
 void FuncProjectorDS::advance() {
     source->advance();
-    update();
+    if (!source->hasEnded())
+        update();
 }
 bool FuncProjectorDS::hasEnded() const {
     return source->hasEnded();
@@ -200,7 +202,8 @@ void FilterDS::reset() {
 }
 void FilterDS::advance() {
     source->advance();
-    update();
+    if (!source->hasEnded())
+        update();
 }
 bool FilterDS::hasEnded() const {
     return source->hasEnded();

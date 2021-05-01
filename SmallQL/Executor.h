@@ -2,6 +2,7 @@
 #include "DataFile.h"
 #include "SystemInfoManager.h"
 #include "DataSequence.h"
+#include "GroupDataSequence.h"
 #include <map>
 
 using namespace std;
@@ -21,6 +22,7 @@ public:
     map<uint16_t, unique_ptr<DataFile>> dataFiles;
     map<pair<uint16_t, uint16_t>, unique_ptr<IndexFile>> indexFiles;
     vector<unique_ptr<DataSequence>> sequences;
+    vector<unique_ptr<GroupDataSequence>> groupSequences;
     SystemInfoManager& sysMan;
     QueryType queryType;
     uint16_t tableId;

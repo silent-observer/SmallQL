@@ -84,7 +84,7 @@ const static set<string> KEYWORDS_SET = {
     "SELECT", "FROM", "INSERT", "INTO", "VALUES", "AS", "NOT",
     "AND", "OR", "WHERE", "CREATE", "TABLE", "PRIMARY", "KEY",
     "NULL", "CROSS", "INNER", "LEFT", "RIGHT", "FULL", "JOIN", "ON",
-    "ORDER", "BY", "ASC", "DESC"
+    "ORDER", "BY", "ASC", "DESC", "GROUP"
 };
 
 const static set<string> TYPE_SET = {

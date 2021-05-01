@@ -21,6 +21,31 @@ QTablePtr SelectNode::algebrize(const SystemInfoManager& sysMan) {
         source = move(filter);
     }
 
+
+    if (groupBy.size() > 0) {
+        auto sorter = make_unique<SorterQNode>();
+        auto groupifier = make_unique<GroupifierQNode>();
+        auto degroupifier = make_unique<DegroupifierQNode>();
+        sorter->type = source->type;
+        groupifier->type = source->type;
+        degroupifier->type = IntermediateType();
+        vector<bool> groupPlan(source->type.entries.size(), false);
+        for (const auto& c : groupBy) {
+            auto colExpr = c->algebrizeWithContext(sysMan, source->type);
+            auto col = convert<ColumnQNode>(colExpr);
+            if (!col) 
+                throw SemanticException("Cannot group by anything but raw columns!");
+            groupPlan[col->columnId] = true;
+            sorter->cmpPlan.push_back(make_pair(col->columnId, false));
+            degroupifier->type.addEntry(col->type);
+        }
+        groupifier->groupPlan = groupPlan;
+        sorter->source = move(source);
+        groupifier->source = move(sorter);
+        degroupifier->source = move(groupifier);
+        source = move(degroupifier);
+    }
+
     
     auto projection = make_unique<ProjectionQNode>();
     auto funcProjection = make_unique<FuncProjectionQNode>();

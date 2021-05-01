@@ -40,6 +40,8 @@ struct FilterQNode;
 struct UnionQNode;
 struct JoinQNode;
 struct SorterQNode;
+struct GroupifierQNode;
+struct DegroupifierQNode;
 struct SelectorNode;
 struct InserterNode;
 struct ConstDataNode;
@@ -62,6 +64,8 @@ public:
     virtual void visitUnionQNode(UnionQNode& n) = 0;
     virtual void visitJoinQNode(JoinQNode& n) = 0;
     virtual void visitSorterQNode(SorterQNode& n) = 0;
+    virtual void visitGroupifierQNode(GroupifierQNode& n) = 0;
+    virtual void visitDegroupifierQNode(DegroupifierQNode& n) = 0;
     virtual void visitSelectorNode(SelectorNode& n) = 0;
     virtual void visitInserterNode(InserterNode& n) = 0;
     virtual void visitConstDataNode(ConstDataNode& n) = 0;
@@ -178,6 +182,23 @@ struct SorterQNode : public QTableNode {
     }
 };
 
+struct GroupifierQNode : public QTableNode {
+    vector<bool> groupPlan;
+    QTablePtr source;
+    GroupifierQNode() {}
+    virtual void accept(Visitor* v) {
+        v->visitGroupifierQNode(*this);
+    }
+};
+
+struct DegroupifierQNode : public QTableNode {
+    QTablePtr source;
+    DegroupifierQNode() {}
+    virtual void accept(Visitor* v) {
+        v->visitDegroupifierQNode(*this);
+    }
+};
+
 struct SelectorNode : public QTableNode {
     QTablePtr source;
     SelectorNode() {}
@@ -279,6 +300,18 @@ public:
         qPtr = oldQPtr;
     }
     virtual void visitSorterQNode(SorterQNode& n) {
+        auto oldQPtr = qPtr;
+        qPtr = &n.source;
+        n.source->accept(this);
+        qPtr = oldQPtr;
+    }
+    virtual void visitGroupifierQNode(GroupifierQNode& n) {
+        auto oldQPtr = qPtr;
+        qPtr = &n.source;
+        n.source->accept(this);
+        qPtr = oldQPtr;
+    }
+    virtual void visitDegroupifierQNode(DegroupifierQNode& n) {
         auto oldQPtr = qPtr;
         qPtr = &n.source;
         n.source->accept(this);

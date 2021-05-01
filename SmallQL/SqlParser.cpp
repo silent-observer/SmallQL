@@ -66,6 +66,21 @@ unique_ptr<SelectNode> Parser::parseSelect() {
         l.advance();
         result->whereCond = parseCondition();
     }
+
+    if (l.get().isKeyword("GROUP")) {
+        l.advance();
+        checkKeyword("BY", "Expected BY");
+        l.advance();
+        bool isFirst = true;
+        while (isFirst || l.get().type == TokenType::Comma) {
+            if (!isFirst) {
+                l.advance();
+            }
+            isFirst = false;
+            result->groupBy.push_back(parseExpr());
+        }
+    }
+
     if (l.get().isKeyword("ORDER")) {
         l.advance();
         checkKeyword("BY", "Expected BY");

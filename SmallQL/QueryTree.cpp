@@ -184,6 +184,27 @@ public:
         n.source->accept(this);
         level--;
     }
+    virtual void visitGroupifierQNode(GroupifierQNode& n) {
+        cout << indent() << "Groupifier[" << endl;
+        cout << indent1() << "Group plan: ";
+        for (const auto& b : n.groupPlan) {
+            cout << (b ? "G" : "_");
+        }
+        cout << endl;
+        cout << indent1() << "Type: " << n.type << endl;
+        cout << indent() << "] <-" << endl;
+        level++;
+        n.source->accept(this);
+        level--;
+    }
+    virtual void visitDegroupifierQNode(DegroupifierQNode& n) {
+        cout << indent() << "Degroupifier[" << endl;
+        cout << indent1() << "Type: " << n.type << endl;
+        cout << indent() << "] <-" << endl;
+        level++;
+        n.source->accept(this);
+        level--;
+    }
     virtual void visitSelectorNode(SelectorNode& n) {
         cout << indent() << "SELECT" << endl;
         n.source->accept(this);

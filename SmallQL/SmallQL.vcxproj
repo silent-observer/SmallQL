@@ -147,6 +147,7 @@
     <ClCompile Include="DataType.cpp" />
     <ClCompile Include="DDLExecutor.cpp" />
     <ClCompile Include="Executor.cpp" />
+    <ClCompile Include="GroupDataSequence.cpp" />
     <ClCompile Include="IndexFile.cpp" />
     <ClCompile Include="PrettyTablePrinter.cpp" />
     <ClCompile Include="QueryTree.cpp" />
@@ -166,6 +167,7 @@
     <ClInclude Include="DataType.h" />
     <ClInclude Include="DDLExecutor.h" />
     <ClInclude Include="Executor.h" />
+    <ClInclude Include="GroupDataSequence.h" />
     <ClInclude Include="IndexFile.h" />
     <ClInclude Include="IndexFilePrivate.h" />
     <ClInclude Include="Optimizer.h" />
