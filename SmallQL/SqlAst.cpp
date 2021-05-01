@@ -14,14 +14,10 @@ void InsertStmtNode::prettyPrint(ostream& s, int level) const
 void SelectNode::prettyPrint(ostream& s, int level) const
 {
     s << indent() << "SELECT {" << endl;
-    if (isStar)
-        s << indent1() << "*" << endl;
-    else {
-        for (auto& p : columns) {
-            s << indent1() << p.second << " = ";
-            p.first->prettyPrint(s, 0);
-            s << endl;
-        }
+    for (auto& p : columns) {
+        s << indent1() << p.second << " = ";
+        p.first->prettyPrint(s, 0);
+        s << endl;
     }
     s << indent() << "} FROM {" << endl;
     from->prettyPrint(s, level + 1);

@@ -40,11 +40,6 @@ inline void Parser::checkEOS() {
 unique_ptr<SelectNode> Parser::parseSelect() {
     auto result = l.createPtr<SelectNode>();
     l.advance();
-    if (l.get().type == TokenType::Asterisk) {
-        result->isStar = true;
-        l.advance();
-    }
-    else result->isStar = false;
     checkEOS();
     if (!l.get().isKeyword("FROM")) {
         bool isFirst = true;
@@ -225,6 +220,14 @@ unique_ptr<TableExpr> Parser::parseJoin() {
 }
 
 unique_ptr<ColumnNameExpr> Parser::parseColumnNameExpr() {
+    if (l.get().type == TokenType::Asterisk) {
+        auto result = l.createPtr<ColumnNameExpr>();
+        l.advance();
+        result->name = "*";
+        result->tableName = "";
+        return result;
+    }
+
     check(TokenType::Id, "Expected column name");
     auto result = l.createPtr<ColumnNameExpr>();
     result->name = l.pop().text;
@@ -232,8 +235,14 @@ unique_ptr<ColumnNameExpr> Parser::parseColumnNameExpr() {
     if (l.get().type == TokenType::Dot) {
         l.advance();
         result->tableName = result->name;
-        check(TokenType::Id, "Expected column name");
-        result->name = l.pop().text;
+        if (l.get().type == TokenType::Asterisk) {
+            result->name = "*";
+            l.advance();
+        }
+        else {
+            check(TokenType::Id, "Expected column name");
+            result->name = l.pop().text;
+        }
     }
     return result;
 }
@@ -272,7 +281,7 @@ unique_ptr<ExprNode> Parser::parseAtomicExpr() {
         l.advance();
         return result;
     }
-    else if (l.get().type == TokenType::Id) {
+    else if (l.get().type == TokenType::Id || l.get().type == TokenType::Asterisk) {
         return parseColumnNameExpr();
     }
     else if (l.get().type == TokenType::FunctionName) {

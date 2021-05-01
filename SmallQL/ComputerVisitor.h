@@ -14,6 +14,7 @@ public:
         return result;
     }
     virtual void visitColumnQNode(ColumnQNode& n);
+    virtual void visitAsteriskQNode(AsteriskQNode& n) {}
     virtual void visitConstScalarQNode(ConstScalarQNode& n);
     virtual void visitFuncQNode(FuncQNode& n);
 };

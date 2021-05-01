@@ -44,6 +44,7 @@ struct SelectorNode;
 struct InserterNode;
 struct ConstDataNode;
 struct ColumnQNode;
+struct AsteriskQNode;
 struct FuncQNode;
 struct ConstScalarQNode;
 struct AndConditionQNode;
@@ -68,6 +69,7 @@ public:
 class QScalarNode::Visitor {
 public:
     virtual void visitColumnQNode(ColumnQNode& n) = 0;
+    virtual void visitAsteriskQNode(AsteriskQNode& n) = 0;
     virtual void visitConstScalarQNode(ConstScalarQNode& n) = 0;
     virtual void visitFuncQNode(FuncQNode& n) = 0;
 };
@@ -207,6 +209,14 @@ struct ColumnQNode : public QScalarNode {
     ColumnQNode() {}
     virtual void accept(Visitor* v) {
         v->visitColumnQNode(*this);
+    }
+};
+
+struct AsteriskQNode : public QScalarNode {
+    string tableName;
+    AsteriskQNode() {}
+    virtual void accept(Visitor* v) {
+        v->visitAsteriskQNode(*this);
     }
 };
 

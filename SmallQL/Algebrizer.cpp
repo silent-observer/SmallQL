@@ -33,40 +33,54 @@ QTablePtr SelectNode::algebrize(const SystemInfoManager& sysMan) {
         source = move(sorter);
     }
 
-    if (!isStar) {
-        auto projection = make_unique<ProjectionQNode>();
-        auto funcProjection = make_unique<FuncProjectionQNode>();
-        int funcId = source->type.entries.size();
-        projection->type = IntermediateType();
-        funcProjection->type = source->type;
-        for (const auto& p : columns) {
-            string alias = p.second;
-            auto colExpr = p.first->algebrizeWithContext(sysMan, source->type);
-            if (auto col = convert<ColumnQNode>(colExpr)) {
-                projection->columns.push_back(col->columnId);
-                IntermediateTypeEntry scalar = col->type;
-                scalar.columnName = alias;
-                projection->type.addEntry(scalar);
-            }
-            else {
-                IntermediateTypeEntry scalar = colExpr->type;
-                funcProjection->type.addEntry(scalar);
-                funcProjection->funcs.push_back(move(colExpr));
-                scalar.columnName = alias;
-                projection->columns.push_back(funcId);
-                projection->type.addEntry(scalar);
-                funcId++;
+    
+    auto projection = make_unique<ProjectionQNode>();
+    auto funcProjection = make_unique<FuncProjectionQNode>();
+    int funcId = source->type.entries.size();
+    projection->type = IntermediateType();
+    funcProjection->type = source->type;
+    for (const auto& p : columns) {
+        string alias = p.second;
+        auto colExpr = p.first->algebrizeWithContext(sysMan, source->type);
+        if (auto col = convert<AsteriskQNode>(colExpr)) {
+            for (int i = 0; i < source->type.entries.size(); i++) {
+                if (col->tableName != "") {
+                    string tableName = source->type.entries[i].tableName;
+                    if (source->type.tableAliases.count(col->tableName)) {
+                        if (tableName != source->type.tableAliases.at(col->tableName) && col->tableName != tableName)
+                            continue;
+                    }
+                    else if (col->tableName != tableName)
+                        continue;
+                }
+                projection->columns.push_back(i);
+                projection->type.addEntry(source->type.entries[i]);
             }
         }
-        if (funcProjection->funcs.size() > 0) {
-            funcProjection->source = move(source);
-            projection->source = move(funcProjection);
+        else if (auto col = convert<ColumnQNode>(colExpr)) {
+            projection->columns.push_back(col->columnId);
+            IntermediateTypeEntry scalar = col->type;
+            scalar.columnName = alias;
+            projection->type.addEntry(scalar);
         }
         else {
-            projection->source = move(source);
+            IntermediateTypeEntry scalar = colExpr->type;
+            funcProjection->type.addEntry(scalar);
+            funcProjection->funcs.push_back(move(colExpr));
+            scalar.columnName = alias;
+            projection->columns.push_back(funcId);
+            projection->type.addEntry(scalar);
+            funcId++;
         }
-        source = move(projection);
     }
+    if (funcProjection->funcs.size() > 0) {
+        funcProjection->source = move(source);
+        projection->source = move(funcProjection);
+    }
+    else {
+        projection->source = move(source);
+    }
+    source = move(projection);
     result->source = move(source);
     result->type = result->source->type;
     return result;
@@ -108,6 +122,12 @@ QTablePtr JoinNode::algebrize(const SystemInfoManager& sysMan) {
 
 QScalarPtr ColumnNameExpr::algebrizeWithContext(
         const SystemInfoManager& sysMan, const IntermediateType& type) const {
+    if (name == "*") {
+        auto result = make_unique<AsteriskQNode>();
+        result->tableName = tableName;
+        return result;
+    }
+
     auto result = make_unique<ColumnQNode>();
     result->name = name;
     if (tableName == "") {
@@ -153,8 +173,13 @@ QScalarPtr FuncExpr::algebrizeWithContext(
     result->name = name;
     vector<shared_ptr<DataType>> inputs;
     for (auto& child : children) {
-        result->children.push_back(child->algebrizeWithContext(sysMan, type));
-        inputs.push_back(result->children.back()->type.type);
+        auto newChild = child->algebrizeWithContext(sysMan, type);
+        if (is<AsteriskQNode>(newChild)) {
+            throw TypeException("Cannot use * outside of SELECT query");
+        }
+        inputs.push_back(newChild->type.type);
+        result->children.push_back(move(newChild));
+        
     }
     auto dataType = typeCheckFunc(name, inputs);
     string text = AstNode::prettyPrint();
@@ -198,6 +223,9 @@ QCondPtr CompareConditionNode::algebrizeWithContext(
     auto result = make_unique<CompareConditionQNode>();
     result->left = left->algebrizeWithContext(sysMan, type);
     result->right = right->algebrizeWithContext(sysMan, type);
+    if (is<AsteriskQNode>(result->left) || is<AsteriskQNode>(result->right)) {
+        throw TypeException("Cannot use * outside of SELECT query");
+    }
     switch (condType)
     {
     case CompareType::Equal:

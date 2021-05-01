@@ -7,6 +7,11 @@ public:
     virtual void visitColumnQNode(ColumnQNode& n) {
         cout << "Column<" << n.name << ">";
     }
+    virtual void visitAsteriskQNode(AsteriskQNode& n) {
+        if (n.tableName != "")
+            cout << n.tableName << ".";
+        cout << "*";
+    }
     virtual void visitConstScalarQNode(ConstScalarQNode& n) {
         cout << n.data;
     }

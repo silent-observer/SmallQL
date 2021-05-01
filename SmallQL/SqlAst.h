@@ -56,7 +56,6 @@ struct InsertStmtNode : public StatementNode {
 
 struct SelectNode : public QueryNode {
     unique_ptr<TableExpr> from;
-    bool isStar;
     vector<pair<unique_ptr<ExprNode>, string>> columns;
     unique_ptr<ConditionNode> whereCond;
     vector<pair<unique_ptr<ExprNode>, bool>> orderBy;
