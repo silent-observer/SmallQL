@@ -45,6 +45,13 @@ void SelectStmtNode::prettyPrint(ostream& s, int level) const
     select.prettyPrint(s, level);
 }
 
+void TableSubquery::prettyPrint(ostream& s, int level) const
+{
+    s << indent() << "(";
+    query->prettyPrint(s, level + 1);
+    s << indent() << ") AS " << alias << endl;
+}
+
 void TableName::prettyPrint(ostream& s, int level) const
 {
     s << indent() << "TableName(" << name << ")" << endl;

@@ -7,6 +7,7 @@ unique_ptr<StatementNode> Parser::parse() {
     if (l.get().text == "SELECT") {
         auto result = l.createPtr<SelectStmtNode>();
         result->select = move(*parseSelect());
+        check(TokenType::Semicolon, "Expected semicolon");
         return result;
     }
     else if (l.get().text == "INSERT") {
@@ -103,8 +104,6 @@ unique_ptr<SelectNode> Parser::parseSelect() {
             result->orderBy.push_back(make_pair(move(expr), isDesc));
         }
     }
-
-    check(TokenType::Semicolon, "Expected semicolon");
     return result;
 }
 
@@ -180,8 +179,27 @@ unique_ptr<TableName> Parser::parseTableName() {
     return result;
 }
 
+unique_ptr<TableExpr> Parser::parseTableExpr() {
+    if (l.get().type == TokenType::LParen) {
+        l.advance();
+        checkKeyword("SELECT", "Expected SELECT");
+        auto result = l.createPtr<TableSubquery>();
+        result->query = parseSelect();
+        check(TokenType::RParen, "Expected right parenthesis");
+        l.advance();
+        if (l.get().isKeyword("AS")) {
+            l.advance();
+            check(TokenType::Id, "Expected table alias");
+            result->alias = l.pop().text;
+        }
+        return result;
+    }
+    else
+        return parseTableName();
+}
+
 unique_ptr<TableExpr> Parser::parseJoin() {
-    unique_ptr<TableExpr> result = parseTableName();
+    unique_ptr<TableExpr> result = parseTableExpr();
     while (l.get().type == TokenType::Comma || 
             l.get().isKeyword("CROSS") ||
             l.get().isKeyword("INNER") ||
@@ -219,7 +237,7 @@ unique_ptr<TableExpr> Parser::parseJoin() {
         }
 
         join->left = move(result);
-        join->right = parseTableName();
+        join->right = parseTableExpr();
 
         if (join->joinType == JoinType::Cross)
             join->on = nullptr;

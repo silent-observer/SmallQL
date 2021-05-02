@@ -217,9 +217,7 @@ static inline unique_ptr<SorterQNode> algebrizeSelectOrderBy(
 }
 
 QTablePtr SelectNode::algebrize(const SystemInfoManager& sysMan) {
-    auto result = make_unique<SelectorNode>();
     auto source = from->algebrize(sysMan);
-
     source = algebrizeSelectWhere(*this, move(source), sysMan);
 
     auto preaggrType = source->type;
@@ -256,16 +254,27 @@ QTablePtr SelectNode::algebrize(const SystemInfoManager& sysMan) {
         source = move(sorter);
     }
 
-    
     projection->source = move(source);
-    source = move(projection);
-    result->source = move(source);
+    return projection;
+}
+
+QTablePtr SelectStmtNode::algebrize(const SystemInfoManager& sysMan) {
+    auto result = make_unique<SelectorNode>();
+    result->source = select.algebrize(sysMan);
     result->type = result->source->type;
     return result;
 }
 
-QTablePtr SelectStmtNode::algebrize(const SystemInfoManager& sysMan) {
-    return select.algebrize(sysMan);
+QTablePtr TableSubquery::algebrize(const SystemInfoManager& sysMan) {
+    auto result = query->algebrize(sysMan);
+    if (alias != "") {
+        if (!result->type.isAmbiguous.empty())
+            throw SemanticException("Cannot have ambiguous columns in a subquery (" + alias + ")");
+        for (auto& entry : result->type.entries) {
+            entry.tableName = alias;
+        }
+    }
+    return result;
 }
 
 QTablePtr TableName::algebrize(const SystemInfoManager& sysMan) {
@@ -324,6 +333,13 @@ QScalarPtr ColumnNameExpr::algebrizeWithContext(
     }
     else {
         string actualName = tableName;
+        for (int i = 0; i < type.entries.size(); i++) {
+            if (type.entries[i].columnName == name && type.entries[i].tableName == actualName) {
+                result->columnId = i;
+                result->type = type.entries[i];
+                return result;
+            }
+        }
         if (type.tableAliases.count(actualName) != 0)
             actualName = type.tableAliases.at(actualName);
         for (int i = 0; i < type.entries.size(); i++) {

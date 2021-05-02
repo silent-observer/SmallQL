@@ -107,7 +107,9 @@ public:
         return result;
     }
     inline string sourceSubstr(int startPos) const {
-        return source.substr(startPos, posBefore - startPos);
+        string result = source.substr(startPos, posBefore - startPos);
+        int endIndex = result.find_last_not_of(' ');
+        return result.substr(0, endIndex + 1);
     }
 };
 
@@ -129,6 +131,7 @@ private:
     unique_ptr<ConditionNode> parseElementaryCondition();
     unique_ptr<ConditionNode> parseCompareCondition();
     unique_ptr<TableName> parseTableName();
+    unique_ptr<TableExpr> parseTableExpr();
     unique_ptr<TableExpr> parseJoin();
     unique_ptr<InsertDataNode> parseInsertData();
     unique_ptr<InsertValuesNode> parseInsertValues();

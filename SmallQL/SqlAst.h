@@ -39,7 +39,6 @@ struct ConditionAlgebrizableNode : public AstNode {
 struct StatementNode : public TableAlgebrizableNode {};
 struct TableExpr : public TableAlgebrizableNode {};
 struct ExprNode : public ScalarAlgebrizableNode {};
-struct QueryNode : public TableAlgebrizableNode {};
 struct InsertDataNode : public TableAlgebrizableNode {
     virtual QTablePtr algebrizeWithContext(
         const SystemInfoManager& sysMan, 
@@ -56,7 +55,7 @@ struct InsertStmtNode : public StatementNode {
     virtual QTablePtr algebrize(const SystemInfoManager& sysMan);
 };
 
-struct SelectNode : public QueryNode {
+struct SelectNode : public TableExpr {
     unique_ptr<TableExpr> from;
     vector<pair<unique_ptr<ExprNode>, string>> columns;
     unique_ptr<ConditionNode> whereCond;
@@ -74,6 +73,13 @@ struct SelectStmtNode : public StatementNode {
 
 struct TableName : public TableExpr {
     string name;
+    string alias;
+    virtual void prettyPrint(ostream& s, int level) const;
+    virtual QTablePtr algebrize(const SystemInfoManager& sysMan);
+};
+
+struct TableSubquery : public TableExpr {
+    unique_ptr<SelectNode> query;
     string alias;
     virtual void prettyPrint(ostream& s, int level) const;
     virtual QTablePtr algebrize(const SystemInfoManager& sysMan);
