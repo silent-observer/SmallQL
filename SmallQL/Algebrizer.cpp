@@ -10,26 +10,26 @@ QTablePtr InsertStmtNode::algebrize(const SystemInfoManager& sysMan) {
     return result;
 }
 
-QTablePtr SelectNode::algebrize(const SystemInfoManager& sysMan) {
-    auto result = make_unique<SelectorNode>();
-    auto source = from->algebrize(sysMan);
-
-    if (whereCond != NULL) {
+static inline QTablePtr algebrizeSelectWhere(const SelectNode& n, QTablePtr source, const SystemInfoManager& sysMan) {
+    if (n.whereCond != NULL) {
         auto filter = make_unique<FilterQNode>();
         filter->type = source->type;
-        filter->cond = whereCond->algebrizeWithContext(sysMan, source->type, source->type);
+        filter->cond = n.whereCond->algebrizeWithContext(sysMan, source->type, source->type);
         filter->source = move(source);
         source = move(filter);
     }
+    return source;
+}
 
-    auto preaggrType = source->type;
+static inline pair<IntermediateType, vector<bool>> algebrizeSelectUpdateSourceType(
+    const SelectNode& n, const QTableNode* source, const SystemInfoManager& sysMan) {
     auto sourceType = source->type;
     vector<bool> groupPlan(source->type.entries.size(), false);
-    if (groupBy.size() > 0) {
+    if (n.groupBy.size() > 0) {
         sourceType.entries.clear();
         sourceType.isAmbiguous.clear();
-        for (const auto& c : groupBy) {
-            auto colExpr = c->algebrizeWithContext(sysMan, source->type, preaggrType);
+        for (const auto& c : n.groupBy) {
+            auto colExpr = c->algebrizeWithContext(sysMan, source->type, source->type);
             auto col = convert<ColumnQNode>(colExpr);
             if (!col) 
                 throw SemanticException("Cannot group by anything but raw columns!");
@@ -40,14 +40,26 @@ QTablePtr SelectNode::algebrize(const SystemInfoManager& sysMan) {
                 sourceType.addEntry(source->type.entries[id]);
         }
     }
+    return make_pair(sourceType, groupPlan);
+}
 
-    vector<pair<QScalarPtr, string>> algebrized;
-    for (const auto& p : columns) {
+using ColumnsVector = vector<pair<QScalarPtr, string>>;
+
+static inline ColumnsVector algebrizeSelectColumns(
+        const SelectNode& n, const IntermediateType& sourceType, 
+        const IntermediateType& preaggrType, const SystemInfoManager& sysMan) {
+    ColumnsVector algebrized;
+    for (const auto& p : n.columns) {
         string alias = p.second;
         auto colExpr = p.first->algebrizeWithContext(sysMan, sourceType, preaggrType);
         algebrized.push_back(make_pair(move(colExpr), alias));
     }
+    return algebrized;
+}
 
+static inline tuple<int, int, int> algebrizeSelectCalcCounts(
+        const QTableNode* source, 
+        const ColumnsVector& algebrized, int groupBySize) {
     int columnCount = source->type.entries.size();
     int funcCount = 0;
     int groupFuncCount = 0;
@@ -58,16 +70,17 @@ QTablePtr SelectNode::algebrize(const SystemInfoManager& sysMan) {
         else if (is<FuncQNode>(p.first))
             funcCount++;
     }
-    if (groupFuncCount != 0 || groupBy.size() > 0) {
-        columnCount = groupBy.size();
+    if (groupFuncCount != 0 || groupBySize > 0) {
+        columnCount = groupBySize;
     }
-    int groupFuncIndex = columnCount;
-    int funcIndex = groupFuncIndex + groupFuncCount;
-    int endIndex = funcIndex + funcCount;
+    return make_tuple(columnCount, funcCount, groupFuncCount);
+}
 
+static inline unique_ptr<ProjectionQNode> algebrizeSelectProjection(
+        const ColumnsVector& algebrized,
+        const QTableNode* source, int& funcIndex, int& groupFuncIndex) {
     auto projection = make_unique<ProjectionQNode>();
     projection->type = IntermediateType();
-    vector<pair<QScalarPtr, string>> aggrFuncs;
     for (auto& p : algebrized) {
         if (auto col = convert<AsteriskQNode>(p.first)) {
             for (int i = 0; i < source->type.entries.size(); i++) {
@@ -97,7 +110,6 @@ QTablePtr SelectNode::algebrize(const SystemInfoManager& sysMan) {
             if (p.first->type.isAggregate) {
                 projection->columns.push_back(groupFuncIndex);
                 groupFuncIndex++;
-                aggrFuncs.push_back(move(p));
             }
             else {
                 projection->columns.push_back(funcIndex);
@@ -105,9 +117,24 @@ QTablePtr SelectNode::algebrize(const SystemInfoManager& sysMan) {
             }
         }
     }
+    return projection;
+}
 
-    
-    if (groupBy.size() > 0 || aggrFuncs.size() > 0) {
+static inline ColumnsVector algebrizeSelectAggrFuncs(ColumnsVector& algebrized) {
+    ColumnsVector aggrFuncs;
+    for (auto& p : algebrized) {
+        if (is<AsteriskQNode>(p.first)) continue;
+        if (p.first->type.isAggregate)
+            aggrFuncs.push_back(move(p));
+    }
+    return aggrFuncs;
+}
+
+static inline QTablePtr algebrizeSelectGroupBy(const SelectNode& n, QTablePtr source,
+        ColumnsVector& aggrFuncs, const IntermediateType& sourceType,
+        const vector<bool>& groupPlan, int columnCount) {
+
+    if (n.groupBy.size() > 0 || aggrFuncs.size() > 0) {
         auto sorter = make_unique<SorterQNode>();
         auto groupifier = make_unique<GroupifierQNode>();
         auto degroupifier = make_unique<DegroupifierQNode>();
@@ -145,11 +172,12 @@ QTablePtr SelectNode::algebrize(const SystemInfoManager& sysMan) {
         degroupifier->source = move(groupedSource);
         source = move(degroupifier);
     }
+    return source;
+}
 
-    
-    
+static inline unique_ptr<FuncProjectionQNode> algebrizeSelectFuncProj(
+        const QTableNode* source, ColumnsVector& algebrized) {
     auto funcProjection = make_unique<FuncProjectionQNode>();
-
     funcProjection->type = source->type;
     for (auto& p : algebrized) {
         if (is<FuncQNode>(p.first)) {
@@ -159,13 +187,16 @@ QTablePtr SelectNode::algebrize(const SystemInfoManager& sysMan) {
             funcProjection->funcs.push_back(move(p.first));
         }
     }
+    return funcProjection;
+}
 
-
-    unique_ptr<SorterQNode> sorter = nullptr;
-    if (orderBy.size() > 0) {
-        sorter = make_unique<SorterQNode>();
+static inline unique_ptr<SorterQNode> algebrizeSelectOrderBy(
+        const SelectNode& n, FuncProjectionQNode* funcProjection,
+        const SystemInfoManager& sysMan, const IntermediateType& preaggrType, int& endIndex) {
+    if (n.orderBy.size() > 0) {
+        auto sorter = make_unique<SorterQNode>();
         sorter->type = funcProjection->type;
-        for (const auto& p : orderBy) {
+        for (const auto& p : n.orderBy) {
             auto colExpr = p.first->algebrizeWithContext(sysMan, funcProjection->type, preaggrType);
             if (auto col = convert<ColumnQNode>(colExpr)) {
                 sorter->cmpPlan.push_back(make_pair(col->columnId, p.second));
@@ -179,8 +210,42 @@ QTablePtr SelectNode::algebrize(const SystemInfoManager& sysMan) {
                 endIndex++;
             }
         }
+        return sorter;
     }
+    else
+        return nullptr;
+}
 
+QTablePtr SelectNode::algebrize(const SystemInfoManager& sysMan) {
+    auto result = make_unique<SelectorNode>();
+    auto source = from->algebrize(sysMan);
+
+    source = algebrizeSelectWhere(*this, move(source), sysMan);
+
+    auto preaggrType = source->type;
+    auto r1 = algebrizeSelectUpdateSourceType(*this, source.get(), sysMan);
+    const auto& sourceType = r1.first;
+    const auto& groupPlan = r1.second;
+
+    auto algebrized = algebrizeSelectColumns(*this, sourceType, preaggrType, sysMan);
+
+    auto r2 = algebrizeSelectCalcCounts(source.get(), algebrized, groupBy.size());
+    int columnCount = get<0>(r2);
+    int funcCount = get<1>(r2);
+    int groupFuncCount = get<2>(r2);
+    int groupFuncIndex = columnCount;
+    int funcIndex = groupFuncIndex + groupFuncCount;
+    int endIndex = funcIndex + funcCount;
+
+    auto projection = algebrizeSelectProjection(algebrized, source.get(), funcIndex, groupFuncIndex);
+    auto aggrFuncs = algebrizeSelectAggrFuncs(algebrized);
+    
+    source = algebrizeSelectGroupBy(*this, move(source), aggrFuncs, sourceType, groupPlan, columnCount);
+    
+    auto funcProjection = algebrizeSelectFuncProj(source.get(), algebrized);
+
+    unique_ptr<SorterQNode> sorter = algebrizeSelectOrderBy(*this, 
+        funcProjection.get(), sysMan, preaggrType, endIndex);
 
     if (funcProjection->funcs.size() > 0) {
         funcProjection->source = move(source);
