@@ -288,6 +288,20 @@ unique_ptr<FuncExpr> Parser::parseFuncExpr() {
     return result;
 }
 
+unique_ptr<AggrFuncExpr> Parser::parseAggrFuncExpr() {
+    check(TokenType::AggrFunctionName, "Expected function name");
+    auto result = l.createPtr<AggrFuncExpr>();
+    result->name = l.pop().text;
+
+    check(TokenType::LParen, "Expected left parenthesis");
+    l.advance();
+    result->child = parseExpr();
+    check(TokenType::RParen, "Expected right parenthesis");
+    l.advance();
+
+    return result;
+}
+
 unique_ptr<ExprNode> Parser::parseAtomicExpr() {
     if (l.get().type == TokenType::Minus) {
         auto result = l.createPtr<FuncExpr>();
@@ -308,6 +322,9 @@ unique_ptr<ExprNode> Parser::parseAtomicExpr() {
     }
     else if (l.get().type == TokenType::FunctionName) {
         return parseFuncExpr();
+    }
+    else if (l.get().type == TokenType::AggrFunctionName) {
+        return parseAggrFuncExpr();
     }
     else
         return parseConstExpr();

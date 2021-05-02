@@ -210,20 +210,25 @@ public:
 
 shared_ptr<DataType> parseDataType(string str);
 shared_ptr<DataType> typeCheckFunc(string name, vector<shared_ptr<DataType>> inputs);
+shared_ptr<DataType> typeCheckAggrFunc(string name, shared_ptr<DataType> input);
 
 struct IntermediateTypeEntry {
     string columnName, tableName;
     shared_ptr<DataType> type;
     int id;
     bool canBeNull;
+    bool isAggregate;
+    bool isConst;
     IntermediateTypeEntry() {}
     IntermediateTypeEntry(string columnName, string tableName,
-        shared_ptr<DataType> type, bool canBeNull)
+        shared_ptr<DataType> type, bool canBeNull, bool isAggregate, bool isConst)
         : columnName(columnName)
         , tableName(tableName)
         , type(type)
         , id(-1)
-        , canBeNull(canBeNull) {}
+        , canBeNull(canBeNull)
+        , isAggregate(isAggregate)
+        , isConst(isConst) {}
     int compare(const Value& a, const Value& b) const;
 };
 

@@ -10,6 +10,7 @@ enum class TokenType {
     Keyword,
     Type,
     FunctionName,
+    AggrFunctionName,
     Id,
     LParen,
     RParen,
@@ -118,6 +119,7 @@ private:
     unique_ptr<ColumnNameExpr> parseColumnNameExpr();
     unique_ptr<ConstExpr> parseConstExpr();
     unique_ptr<FuncExpr> parseFuncExpr();
+    unique_ptr<AggrFuncExpr> parseAggrFuncExpr();
     unique_ptr<ExprNode> parseAtomicExpr();
     unique_ptr<ExprNode> parseMultExpr();
     unique_ptr<ExprNode> parseAddExpr();

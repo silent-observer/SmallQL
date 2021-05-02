@@ -462,6 +462,18 @@ shared_ptr<DataType> typeCheckFunc(string name, vector<shared_ptr<DataType>> inp
     return nullptr;
 }
 
+shared_ptr<DataType> typeCheckAggrFunc(string name, shared_ptr<DataType> input) {
+    if (name == "SUM") {
+        if (is<DoubleType>(input))
+            return make_shared<DoubleType>();
+        else if (is<IntType>(input) || is<ShortIntType>(input) || is<ByteType>(input))
+            return make_shared<IntType>();
+        else
+            throw TypeException("Invalid type in " + name + " expression");
+    }
+    return nullptr;
+}
+
 IntermediateType::IntermediateType(const Schema& schema, string tableName) {
     for (int i = 0; i < schema.columns.size(); i++) {
         IntermediateTypeEntry entry;
@@ -470,6 +482,8 @@ IntermediateType::IntermediateType(const Schema& schema, string tableName) {
         entry.type = schema.columns[i].type;
         entry.canBeNull = schema.columns[i].canBeNull;
         entry.id = schema.columns[i].id;
+        entry.isAggregate = false;
+        entry.isConst = false;
         entries.push_back(entry);
     }
 }

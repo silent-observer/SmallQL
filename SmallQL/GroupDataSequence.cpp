@@ -1,4 +1,6 @@
 #include "GroupDataSequence.h"
+#include "QueryTree.h"
+#include "ComputerVisitor.h"
 
 GroupifierDS::GroupifierDS(const IntermediateType& type, vector<bool> isGrouped,
     DataSequence* source) 
@@ -67,5 +69,41 @@ void DegroupifierDS::update() {
         if (!source->get().isGrouped[j]) continue;
         (*data)[i] = (*source->get().record)[0][j];
         i++;
+    }
+}
+
+
+AggregatorDS::AggregatorDS(const IntermediateType& type, vector<bool> isGrouped,
+    GroupDataSequence* source,
+    vector<unique_ptr<QScalarNode>> funcs)
+    : source(source)
+    , funcs()
+    , data(make_unique<vector<ValueArray>>())
+    , GroupDataSequence(type, isGrouped) {
+    record.record = data.get();
+    for (auto& f : funcs)
+        this->funcs.push_back(move(f));
+    visitor = make_unique<GroupComputerVisitor>(type, record.record);
+}
+void AggregatorDS::reset() {
+    source->reset();
+    if (!source->hasEnded())
+        update();
+}
+void AggregatorDS::advance() {
+    source->advance();
+    if (!source->hasEnded())
+        update();
+}
+bool AggregatorDS::hasEnded() const {
+    return source->hasEnded();
+}
+void AggregatorDS::update() {
+    data->clear();
+    for (int i = 0; i < source->get().record->size(); i++)
+        data->push_back((*source->get().record)[i]);
+    for (int i = 0; i < funcs.size(); i++) {
+        funcs[i]->accept(visitor.get());
+        (*data)[0].push_back(visitor->getResult());
     }
 }

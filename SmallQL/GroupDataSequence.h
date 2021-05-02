@@ -52,3 +52,20 @@ public:
     virtual void advance();
     virtual bool hasEnded() const;
 };
+
+class GroupComputerVisitor;
+class AggregatorDS : public GroupDataSequence {
+private:
+    GroupDataSequence* source;
+    vector<unique_ptr<QScalarNode>> funcs;
+    unique_ptr<vector<ValueArray>> data;
+    unique_ptr<GroupComputerVisitor> visitor;
+    void update();
+public:
+    AggregatorDS(const IntermediateType& type, vector<bool> isGrouped,
+        GroupDataSequence* source, 
+        vector<unique_ptr<QScalarNode>> funcs);
+    virtual void reset();
+    virtual void advance();
+    virtual bool hasEnded() const;
+};

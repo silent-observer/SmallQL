@@ -74,6 +74,13 @@ void FuncExpr::prettyPrint(ostream& s, int level) const
     s << ")";
 }
 
+void AggrFuncExpr::prettyPrint(ostream& s, int level) const
+{
+    s << name << "(";
+    child->prettyPrint(s, level);
+    s << ")";
+}
+
 void JoinNode::prettyPrint(ostream& s, int level) const
 {
     s << indent();

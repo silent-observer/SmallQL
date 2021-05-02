@@ -4,7 +4,7 @@ void ComputerVisitor::visitConstScalarQNode(ConstScalarQNode& n) {
     result = n.data;
 }
 void ComputerVisitor::visitColumnQNode(ColumnQNode& n) {
-    result = record[n.columnId];
+    result = (*record)[n.columnId];
 }
 void ComputerVisitor::visitFuncQNode(FuncQNode& n) {
     if (n.children.size() == 1 && n.name == "-") {
@@ -76,6 +76,23 @@ void ComputerVisitor::visitFuncQNode(FuncQNode& n) {
             n.children[i]->accept(this);
             if (result.type == ValueType::Null) continue;
             v.stringVal += result.stringVal;
+        }
+        result = v;
+    }
+}
+
+void GroupComputerVisitor::visitAggrFuncQNode(AggrFuncQNode& n) {
+    if (n.name == "SUM") {
+        bool isDouble = is<DoubleType>(n.type.type);
+        Value v = isDouble ? Value(0.0) : Value(0);
+        for (const auto& groupRow : *group) {
+            record = &groupRow;
+            n.child->accept(this);
+            if (result.type == ValueType::Null) continue;
+            if (isDouble)
+                v.doubleVal += result.doubleVal;
+            else
+                v.intVal += result.intVal;
         }
         result = v;
     }

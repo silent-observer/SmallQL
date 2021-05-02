@@ -3,12 +3,12 @@
 #include "QueryTree.h"
 
 class ComputerVisitor : public QScalarNode::Visitor {
-private:
+protected:
     const IntermediateType& type;
-    const ValueArray& record;
+    const ValueArray* record;
     Value result;
 public:
-    ComputerVisitor(const IntermediateType& type, const ValueArray& record)
+    ComputerVisitor(const IntermediateType& type, const ValueArray* record)
         : type(type), record(record) {}
     inline const Value& getResult() const {
         return result;
@@ -17,4 +17,17 @@ public:
     virtual void visitAsteriskQNode(AsteriskQNode& n) {}
     virtual void visitConstScalarQNode(ConstScalarQNode& n);
     virtual void visitFuncQNode(FuncQNode& n);
+    virtual void visitAggrFuncQNode(AggrFuncQNode& n) {}
+};
+
+class GroupComputerVisitor : public ComputerVisitor {
+private:
+    const vector<ValueArray>* group;
+public:
+    GroupComputerVisitor(const IntermediateType& type, const vector<ValueArray>* group)
+        : group(group), ComputerVisitor(type, nullptr) {}
+    inline const Value& getResult() const {
+        return result;
+    }
+    virtual void visitAggrFuncQNode(AggrFuncQNode& n);
 };

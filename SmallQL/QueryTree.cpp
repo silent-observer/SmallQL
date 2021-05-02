@@ -24,6 +24,11 @@ public:
         }
         cout << ")";
     }
+    virtual void visitAggrFuncQNode(AggrFuncQNode& n) {
+        cout << n.name << "(";
+        n.child->accept(this);
+        cout << ")";
+    }
 };
 
 class ConditionPrinter : public QConditionNode::Visitor {
@@ -192,6 +197,22 @@ public:
         }
         cout << endl;
         cout << indent1() << "Type: " << n.type << endl;
+        cout << indent() << "] <-" << endl;
+        level++;
+        n.source->accept(this);
+        level--;
+    }
+    virtual void visitAggrFuncProjectionQNode(AggrFuncProjectionQNode& n) {
+        cout << indent1() << "AggrFuncProjection[" << endl;
+        cout << indent1() << "Type: " << n.type << endl;
+        cout << indent1() << "Funcs: " << endl;
+        level++;
+        for (auto& f : n.funcs) {
+            cout << indent1();
+            f->accept(scalarPrinter);
+            cout << endl;
+        }
+        level--;
         cout << indent() << "] <-" << endl;
         level++;
         n.source->accept(this);

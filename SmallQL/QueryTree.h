@@ -41,6 +41,7 @@ struct UnionQNode;
 struct JoinQNode;
 struct SorterQNode;
 struct GroupifierQNode;
+struct AggrFuncProjectionQNode;
 struct DegroupifierQNode;
 struct SelectorNode;
 struct InserterNode;
@@ -48,6 +49,7 @@ struct ConstDataNode;
 struct ColumnQNode;
 struct AsteriskQNode;
 struct FuncQNode;
+struct AggrFuncQNode;
 struct ConstScalarQNode;
 struct AndConditionQNode;
 struct OrConditionQNode;
@@ -65,6 +67,7 @@ public:
     virtual void visitJoinQNode(JoinQNode& n) = 0;
     virtual void visitSorterQNode(SorterQNode& n) = 0;
     virtual void visitGroupifierQNode(GroupifierQNode& n) = 0;
+    virtual void visitAggrFuncProjectionQNode(AggrFuncProjectionQNode& n) = 0;
     virtual void visitDegroupifierQNode(DegroupifierQNode& n) = 0;
     virtual void visitSelectorNode(SelectorNode& n) = 0;
     virtual void visitInserterNode(InserterNode& n) = 0;
@@ -76,6 +79,7 @@ public:
     virtual void visitAsteriskQNode(AsteriskQNode& n) = 0;
     virtual void visitConstScalarQNode(ConstScalarQNode& n) = 0;
     virtual void visitFuncQNode(FuncQNode& n) = 0;
+    virtual void visitAggrFuncQNode(AggrFuncQNode& n) = 0;
 };
 class QConditionNode::Visitor {
 public:
@@ -191,6 +195,15 @@ struct GroupifierQNode : public QTableNode {
     }
 };
 
+struct AggrFuncProjectionQNode : public QTableNode {
+    vector<QScalarPtr> funcs;
+    QTablePtr source;
+    AggrFuncProjectionQNode() {}
+    virtual void accept(Visitor* v) {
+        v->visitAggrFuncProjectionQNode(*this);
+    }
+};
+
 struct DegroupifierQNode : public QTableNode {
     QTablePtr source;
     DegroupifierQNode() {}
@@ -257,6 +270,14 @@ struct FuncQNode : public QScalarNode {
     }
 };
 
+struct AggrFuncQNode : public QScalarNode {
+    string name;
+    QScalarPtr child;
+    virtual void accept(Visitor* v) {
+        v->visitAggrFuncQNode(*this);
+    }
+};
+
 
 class QTableNode::RecursiveVisitor : public QTableNode::Visitor {
 protected:
@@ -311,6 +332,12 @@ public:
         n.source->accept(this);
         qPtr = oldQPtr;
     }
+    virtual void visitAggrFuncProjectionQNode(AggrFuncProjectionQNode& n) {
+        auto oldQPtr = qPtr;
+        qPtr = &n.source;
+        n.source->accept(this);
+        qPtr = oldQPtr;
+    }
     virtual void visitDegroupifierQNode(DegroupifierQNode& n) {
         auto oldQPtr = qPtr;
         qPtr = &n.source;
@@ -338,6 +365,9 @@ public:
     virtual void visitFuncQNode(FuncQNode& n) {
         for (auto& child : n.children)
             child->accept(this);
+    };
+    virtual void visitAggrFuncQNode(AggrFuncQNode& n) {
+        n.child->accept(this);
     };
 };
 class QConditionNode::RecursiveVisitor : public QConditionNode::Visitor {

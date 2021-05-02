@@ -13,49 +13,63 @@ QTablePtr InsertStmtNode::algebrize(const SystemInfoManager& sysMan) {
 QTablePtr SelectNode::algebrize(const SystemInfoManager& sysMan) {
     auto result = make_unique<SelectorNode>();
     auto source = from->algebrize(sysMan);
+
     if (whereCond != NULL) {
         auto filter = make_unique<FilterQNode>();
         filter->type = source->type;
-        filter->cond = whereCond->algebrizeWithContext(sysMan, filter->type);
+        filter->cond = whereCond->algebrizeWithContext(sysMan, source->type, source->type);
         filter->source = move(source);
         source = move(filter);
     }
 
-
+    auto preaggrType = source->type;
+    auto sourceType = source->type;
+    vector<bool> groupPlan(source->type.entries.size(), false);
     if (groupBy.size() > 0) {
-        auto sorter = make_unique<SorterQNode>();
-        auto groupifier = make_unique<GroupifierQNode>();
-        auto degroupifier = make_unique<DegroupifierQNode>();
-        sorter->type = source->type;
-        groupifier->type = source->type;
-        degroupifier->type = IntermediateType();
-        vector<bool> groupPlan(source->type.entries.size(), false);
+        sourceType.entries.clear();
+        sourceType.isAmbiguous.clear();
         for (const auto& c : groupBy) {
-            auto colExpr = c->algebrizeWithContext(sysMan, source->type);
+            auto colExpr = c->algebrizeWithContext(sysMan, source->type, preaggrType);
             auto col = convert<ColumnQNode>(colExpr);
             if (!col) 
                 throw SemanticException("Cannot group by anything but raw columns!");
             groupPlan[col->columnId] = true;
-            sorter->cmpPlan.push_back(make_pair(col->columnId, false));
-            degroupifier->type.addEntry(col->type);
         }
-        groupifier->groupPlan = groupPlan;
-        sorter->source = move(source);
-        groupifier->source = move(sorter);
-        degroupifier->source = move(groupifier);
-        source = move(degroupifier);
+        for (int id = 0; id < groupPlan.size(); id++) {
+            if (groupPlan[id])
+                sourceType.addEntry(source->type.entries[id]);
+        }
     }
 
-    
-    auto projection = make_unique<ProjectionQNode>();
-    auto funcProjection = make_unique<FuncProjectionQNode>();
-    int funcId = source->type.entries.size();
-    projection->type = IntermediateType();
-    funcProjection->type = source->type;
+    vector<pair<QScalarPtr, string>> algebrized;
     for (const auto& p : columns) {
         string alias = p.second;
-        auto colExpr = p.first->algebrizeWithContext(sysMan, source->type);
-        if (auto col = convert<AsteriskQNode>(colExpr)) {
+        auto colExpr = p.first->algebrizeWithContext(sysMan, sourceType, preaggrType);
+        algebrized.push_back(make_pair(move(colExpr), alias));
+    }
+
+    int columnCount = source->type.entries.size();
+    int funcCount = 0;
+    int groupFuncCount = 0;
+    for (auto& p : algebrized) {
+        if (is<AsteriskQNode>(p.first)) continue;
+        if (p.first->type.isAggregate)
+            groupFuncCount++;
+        else if (is<FuncQNode>(p.first))
+            funcCount++;
+    }
+    if (groupFuncCount != 0 || groupBy.size() > 0) {
+        columnCount = groupBy.size();
+    }
+    int groupFuncIndex = columnCount;
+    int funcIndex = groupFuncIndex + groupFuncCount;
+    int endIndex = funcIndex + funcCount;
+
+    auto projection = make_unique<ProjectionQNode>();
+    projection->type = IntermediateType();
+    vector<pair<QScalarPtr, string>> aggrFuncs;
+    for (auto& p : algebrized) {
+        if (auto col = convert<AsteriskQNode>(p.first)) {
             for (int i = 0; i < source->type.entries.size(); i++) {
                 if (col->tableName != "") {
                     string tableName = source->type.entries[i].tableName;
@@ -70,20 +84,79 @@ QTablePtr SelectNode::algebrize(const SystemInfoManager& sysMan) {
                 projection->type.addEntry(source->type.entries[i]);
             }
         }
-        else if (auto col = convert<ColumnQNode>(colExpr)) {
+        else if (auto col = convert<ColumnQNode>(p.first)) {
             projection->columns.push_back(col->columnId);
             IntermediateTypeEntry scalar = col->type;
-            scalar.columnName = alias;
+            scalar.columnName = p.second;
             projection->type.addEntry(scalar);
         }
         else {
-            IntermediateTypeEntry scalar = colExpr->type;
-            scalar.columnName = alias;
-            funcProjection->type.addEntry(scalar);
-            funcProjection->funcs.push_back(move(colExpr));
-            projection->columns.push_back(funcId);
+            IntermediateTypeEntry scalar = p.first->type;
+            scalar.columnName = p.second;
             projection->type.addEntry(scalar);
-            funcId++;
+            if (p.first->type.isAggregate) {
+                projection->columns.push_back(groupFuncIndex);
+                groupFuncIndex++;
+                aggrFuncs.push_back(move(p));
+            }
+            else {
+                projection->columns.push_back(funcIndex);
+                funcIndex++;
+            }
+        }
+    }
+
+    
+    if (groupBy.size() > 0 || aggrFuncs.size() > 0) {
+        auto sorter = make_unique<SorterQNode>();
+        auto groupifier = make_unique<GroupifierQNode>();
+        auto degroupifier = make_unique<DegroupifierQNode>();
+        sorter->type = source->type;
+        groupifier->type = source->type;
+        degroupifier->type = sourceType;
+        for (int id = 0; id < groupPlan.size(); id++) {
+            if (groupPlan[id])
+                sorter->cmpPlan.push_back(make_pair(id, false));
+        }
+        groupifier->groupPlan = groupPlan;
+        if (sorter->cmpPlan.size() != 0) {
+            sorter->source = move(source);
+            source = move(sorter);
+        }
+        groupifier->source = move(source);
+        QTablePtr groupedSource = move(groupifier);
+
+        if (aggrFuncs.size() > 0) {
+            auto funcProjection = make_unique<AggrFuncProjectionQNode>();
+            funcProjection->type = groupedSource->type;
+            int groupFuncId = columnCount;
+            for (auto& p : aggrFuncs) {
+                IntermediateTypeEntry scalar = p.first->type;
+                scalar.columnName = p.second;
+                funcProjection->type.addEntry(scalar);
+                funcProjection->funcs.push_back(move(p.first));
+                degroupifier->type.addEntry(scalar);
+                groupFuncId++;
+            }
+            funcProjection->source = move(groupedSource);
+            groupedSource = move(funcProjection);
+        }
+
+        degroupifier->source = move(groupedSource);
+        source = move(degroupifier);
+    }
+
+    
+    
+    auto funcProjection = make_unique<FuncProjectionQNode>();
+
+    funcProjection->type = source->type;
+    for (auto& p : algebrized) {
+        if (is<FuncQNode>(p.first)) {
+            IntermediateTypeEntry scalar = p.first->type;
+            scalar.columnName = p.second;
+            funcProjection->type.addEntry(scalar);
+            funcProjection->funcs.push_back(move(p.first));
         }
     }
 
@@ -93,7 +166,7 @@ QTablePtr SelectNode::algebrize(const SystemInfoManager& sysMan) {
         sorter = make_unique<SorterQNode>();
         sorter->type = funcProjection->type;
         for (const auto& p : orderBy) {
-            auto colExpr = p.first->algebrizeWithContext(sysMan, funcProjection->type);
+            auto colExpr = p.first->algebrizeWithContext(sysMan, funcProjection->type, preaggrType);
             if (auto col = convert<ColumnQNode>(colExpr)) {
                 sorter->cmpPlan.push_back(make_pair(col->columnId, p.second));
             }
@@ -101,9 +174,9 @@ QTablePtr SelectNode::algebrize(const SystemInfoManager& sysMan) {
                 IntermediateTypeEntry scalar = colExpr->type;
                 funcProjection->type.addEntry(scalar);
                 funcProjection->funcs.push_back(move(colExpr));
-                sorter->cmpPlan.push_back(make_pair(funcId, p.second));
+                sorter->cmpPlan.push_back(make_pair(endIndex, p.second));
                 sorter->type.addEntry(scalar);
-                funcId++;
+                endIndex++;
             }
         }
     }
@@ -154,14 +227,15 @@ QTablePtr JoinNode::algebrize(const SystemInfoManager& sysMan) {
     for (auto& p : result->right->type.tableAliases)
         result->type.tableAliases.insert(p);
     if (on)
-        result->on = on->algebrizeWithContext(sysMan, result->type);
+        result->on = on->algebrizeWithContext(sysMan, result->type, result->type);
     else
         result->on = nullptr;
     return result;
 }
 
 QScalarPtr ColumnNameExpr::algebrizeWithContext(
-        const SystemInfoManager& sysMan, const IntermediateType& type) const {
+        const SystemInfoManager& sysMan, const IntermediateType& type,
+        const IntermediateType& preaggrType) const {
     if (name == "*") {
         auto result = make_unique<AsteriskQNode>();
         result->tableName = tableName;
@@ -200,30 +274,62 @@ QScalarPtr ColumnNameExpr::algebrizeWithContext(
 }
 
 QScalarPtr ConstExpr::algebrizeWithContext(
-        const SystemInfoManager& sysMan, const IntermediateType& type) const {
+        const SystemInfoManager& sysMan, const IntermediateType& type,
+        const IntermediateType& preaggrType) const {
     auto result = make_unique<ConstScalarQNode>();
     result->data = v;
-    result->type = IntermediateTypeEntry(v.toString(), "", v.defaultType(), v.type == ValueType::Null);
+    result->type = IntermediateTypeEntry(v.toString(), "", v.defaultType(), v.type == ValueType::Null, false, true);
     return result;
 }
 
 QScalarPtr FuncExpr::algebrizeWithContext(
-        const SystemInfoManager& sysMan, const IntermediateType& type) const {
+        const SystemInfoManager& sysMan, const IntermediateType& type,
+        const IntermediateType& preaggrType) const {
     auto result = make_unique<FuncQNode>();
     result->name = name;
     vector<shared_ptr<DataType>> inputs;
+    bool hasAggregate = false;
+    bool hasConst = false;
+    bool hasNormal = false;
     for (auto& child : children) {
-        auto newChild = child->algebrizeWithContext(sysMan, type);
+        auto newChild = child->algebrizeWithContext(sysMan, type, preaggrType);
         if (is<AsteriskQNode>(newChild)) {
             throw TypeException("Cannot use * outside of SELECT query");
         }
+        if (newChild->type.isAggregate)
+            hasAggregate = true;
+        else if (newChild->type.isConst)
+            hasConst = true;
+        else
+            hasNormal = true;
         inputs.push_back(newChild->type.type);
         result->children.push_back(move(newChild));
         
     }
+    if (hasNormal && hasAggregate)
+        throw TypeException("Cannot combine aggregate and non-aggregate values");
+    bool isConst = hasConst && !hasAggregate && !hasNormal;
+
     auto dataType = typeCheckFunc(name, inputs);
     string text = AstNode::prettyPrint();
-    result->type = IntermediateTypeEntry(text, "", dataType, true);
+    result->type = IntermediateTypeEntry(text, "", dataType, true, hasAggregate, isConst);
+    return result;
+}
+
+QScalarPtr AggrFuncExpr::algebrizeWithContext(
+        const SystemInfoManager& sysMan, const IntermediateType& type,
+        const IntermediateType& preaggrType) const {
+    auto result = make_unique<AggrFuncQNode>();
+    result->name = name;
+    result->child = child->algebrizeWithContext(sysMan, preaggrType, preaggrType);
+    if (is<AsteriskQNode>(result->child)) {
+        throw TypeException("Cannot use * outside of SELECT query");
+    }
+    if (result->child->type.isAggregate)
+        throw TypeException("Cannot have nested aggregate functions");
+    auto dataType = typeCheckAggrFunc(name, result->child->type.type);
+    string text = AstNode::prettyPrint();
+    result->type = IntermediateTypeEntry(text, "", dataType, true, true, false);
     return result;
 }
 
@@ -237,32 +343,35 @@ QTablePtr InsertValuesNode::algebrizeWithContext(
 
 QCondPtr AndConditionNode::algebrizeWithContext(
         const SystemInfoManager& sysMan, 
-        const IntermediateType& type) const {
+        const IntermediateType& type,
+        const IntermediateType& preaggrType) const {
     auto result = make_unique<AndConditionQNode>();
     for (const auto& c : children) {
         result->children.push_back(
-            c->algebrizeWithContext(sysMan, type));
+            c->algebrizeWithContext(sysMan, type, preaggrType));
     }
     return result;
 }
 
 QCondPtr OrConditionNode::algebrizeWithContext(
         const SystemInfoManager& sysMan, 
-        const IntermediateType& type) const {
+        const IntermediateType& type,
+        const IntermediateType& preaggrType) const {
     auto result = make_unique<OrConditionQNode>();
     for (const auto& c : children) {
         result->children.push_back(
-            c->algebrizeWithContext(sysMan, type));
+            c->algebrizeWithContext(sysMan, type, preaggrType));
     }
     return result;
 }
 
 QCondPtr CompareConditionNode::algebrizeWithContext(
         const SystemInfoManager& sysMan, 
-        const IntermediateType& type) const {
+        const IntermediateType& type,
+        const IntermediateType& preaggrType) const {
     auto result = make_unique<CompareConditionQNode>();
-    result->left = left->algebrizeWithContext(sysMan, type);
-    result->right = right->algebrizeWithContext(sysMan, type);
+    result->left = left->algebrizeWithContext(sysMan, type, preaggrType);
+    result->right = right->algebrizeWithContext(sysMan, type, preaggrType);
     if (is<AsteriskQNode>(result->left) || is<AsteriskQNode>(result->right)) {
         throw TypeException("Cannot use * outside of SELECT query");
     }

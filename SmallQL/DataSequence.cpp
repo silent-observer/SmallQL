@@ -132,7 +132,7 @@ void CondCheckerVisitor::visitAndConditionQNode(AndConditionQNode& n) {
 }
 
 void CondCheckerVisitor::visitCompareConditionQNode(CompareConditionQNode& n) {
-    auto vis = make_unique<ComputerVisitor>(schema, *record);
+    auto vis = make_unique<ComputerVisitor>(schema, record);
     n.left->accept(vis.get());
     Value v1 = vis->getResult();
     n.right->accept(vis.get());
@@ -158,7 +158,7 @@ FuncProjectorDS::FuncProjectorDS(const IntermediateType& type,
     for (auto& f : funcs)
         this->funcs.push_back(move(f));
     visitor = make_unique<ComputerVisitor>
-        (type, *record.record);
+        (type, record.record);
 }
 
 void FuncProjectorDS::reset() {

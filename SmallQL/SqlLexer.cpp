@@ -95,6 +95,10 @@ const static set<string> FUNCTION_NAME_SET = {
     "CONCAT"
 };
 
+const static set<string> AGGR_FUNCTION_NAME_SET = {
+    "SUM"
+};
+
 const regex TYPE_REGEX(R"((INTEGER|INT|BYTE|TINYINT|SMALLINT|DOUBLE|VARCHAR\([0-9]+\)).*)",
     regex_constants::ECMAScript | regex_constants::icase);
 
@@ -119,6 +123,8 @@ void Lexer::lexWord() {
         t = Token(TokenType::Keyword, text, pos);
     else if (FUNCTION_NAME_SET.count(text) != 0)
         t = Token(TokenType::FunctionName, text, pos);
+    else if (AGGR_FUNCTION_NAME_SET.count(text) != 0)
+        t = Token(TokenType::AggrFunctionName, text, pos);
     else
         t = Token(TokenType::Id, text, pos);
     pos = endIndex;
