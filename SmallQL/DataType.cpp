@@ -164,7 +164,14 @@ int compareValue(const Value& a, const Value& b) {
         else
             return 1;
     }
-    assert(a.type == b.type);
+    if (a.type != b.type) {
+        if (a.type == ValueType::Integer && b.type == ValueType::Double)
+            return cmp((double)a.intVal, b.doubleVal);
+        else if (a.type == ValueType::Double && b.type == ValueType::Integer)
+            return cmp(a.doubleVal, (double)b.intVal);
+        else
+            assert(false);
+    }
     switch (a.type)
     {
     case ValueType::Integer: 
