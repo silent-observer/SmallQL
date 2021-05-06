@@ -207,20 +207,20 @@ void SystemInfoManager::dropTable(string name) {
     for (auto i = columnsFile.begin(); i != columnsFile.end(); i++) {
         ValueArray decoded = columnsSchema.decode(*i);
         if (decoded[0].intVal == tableId)
-            tablesFile.deleteRecord(i.getRecordId());
+            columnsFile.deleteRecord(i.getRecordId());
     }
     vector<uint16_t> indexIds;
     for (auto i = indexesFile.begin(); i != indexesFile.end(); i++) {
         ValueArray decoded = indexesSchema.decode(*i);
         if (decoded[0].intVal == tableId) {
             indexIds.push_back(decoded[1].intVal);
-            tablesFile.deleteRecord(i.getRecordId());
+            indexesFile.deleteRecord(i.getRecordId());
         }
     }
     for (auto i = indexColumnsFile.begin(); i != indexColumnsFile.end(); i++) {
         ValueArray decoded = indexColumnsSchema.decode(*i);
         if (decoded[0].intVal == tableId)
-            tablesFile.deleteRecord(i.getRecordId());
+            indexColumnsFile.deleteRecord(i.getRecordId());
     }
 
     tableNames.erase(name);

@@ -167,6 +167,10 @@ Value Parser::parseValue() {
         string s = l.pop().text;
         return Value(s.substr(1, s.size() - 2));
     }
+    else if (l.get().isKeyword("NULL")) {
+        l.advance();
+        return Value(ValueType::Null);
+    }
     else
         throw ParserException("Expected value", l.getPos());
 }
