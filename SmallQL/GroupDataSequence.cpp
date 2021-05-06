@@ -102,8 +102,13 @@ void AggregatorDS::update() {
     data->clear();
     for (int i = 0; i < source->get().record->size(); i++)
         data->push_back((*source->get().record)[i]);
+    ValueArray results;
     for (int i = 0; i < funcs.size(); i++) {
         funcs[i]->accept(visitor.get());
-        (*data)[0].push_back(visitor->getResult());
+        results.push_back(visitor->getResult());
     }
+
+    if (data->empty())
+        data->emplace_back(source->getType().entries.size(), Value(ValueType::Null));
+    (*data)[0].insert((*data)[0].end(), results.begin(), results.end());
 }
