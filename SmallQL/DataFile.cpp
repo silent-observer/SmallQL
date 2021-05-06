@@ -125,7 +125,7 @@ bool DataFile::deleteRecord(RecordId id) {
     char* record = readRecordInternal(id);
     if (record[0] != 0x01) return false;
     RecordId newFrl = *frlStart;
-    memcpy(record, &frlStart, 8);
+    memcpy(record, frlStart, 8);
     if (record[0] != 0xFF) record[0] = 0x00;
     *frlStart = id;
     (*activeRecordCount)--;

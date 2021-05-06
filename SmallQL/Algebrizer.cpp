@@ -258,6 +258,22 @@ QTablePtr SelectNode::algebrize(const SystemInfoManager& sysMan) {
     return projection;
 }
 
+QTablePtr DeleteStmtNode::algebrize(const SystemInfoManager& sysMan) {
+    auto result = make_unique<DeleterNode>();
+    auto table = tableName->algebrize(sysMan);
+    result->tableId = convert<ReadTableQNode>(table)->tableId;
+    result->source = move(table);
+    if (whereCond != NULL) {
+        auto filter = make_unique<FilterQNode>();
+        filter->type = result->source->type;
+        filter->cond = whereCond->algebrizeWithContext(sysMan, result->source->type, result->source->type);
+        filter->source = move(result->source);
+        result->source = move(filter);
+    }
+    result->type = IntermediateType();
+    return result;
+}
+
 QTablePtr SelectStmtNode::algebrize(const SystemInfoManager& sysMan) {
     auto result = make_unique<SelectorNode>();
     result->source = select.algebrize(sysMan);

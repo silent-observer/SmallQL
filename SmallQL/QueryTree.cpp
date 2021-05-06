@@ -234,6 +234,10 @@ public:
         cout << indent() << "INSERT INTO " << n.tableId << endl;
         n.source->accept(this);
     }
+    virtual void visitDeleterNode(DeleterNode& n) {
+        cout << indent() << "DELETE FROM " << n.tableId << endl;
+        n.source->accept(this);
+    }
     virtual void visitConstDataNode(ConstDataNode& n) {
         cout << indent() << "ConstData" << endl;
         level++;

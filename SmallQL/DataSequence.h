@@ -9,6 +9,7 @@
 struct RecordPtr {
     IntermediateType type;
     ValueArray* record;
+    RecordId recordId;
     RecordPtr() : record(NULL) {}
     RecordPtr(const IntermediateType& type) : record(NULL), type(type) {}
 };
@@ -207,4 +208,15 @@ public:
     Inserter(const SystemInfoManager& sysMan, uint16_t tableId);
     bool insert(RecordPtr record);
     bool insert(DataSequence* source);
+};
+
+class Deleter {
+private:
+    vector<pair<RecordId, ValueArray>> data;
+    const SystemInfoManager& sysMan;
+    uint16_t tableId;
+public:
+    Deleter(const SystemInfoManager& sysMan, uint16_t tableId);
+    void prepareAll(DataSequence* source);
+    int deleteAll();
 };

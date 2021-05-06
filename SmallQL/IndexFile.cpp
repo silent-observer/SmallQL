@@ -266,8 +266,7 @@ IndexFile::const_iterator IndexFile::getIterator(const char* key) {
             LeafNode n(*this, currentId, keySize);
             pair<bool, SlotId> p = n.binarySearch(key);
             ptrStack.emplace_back(currentId, p.second);
-            if (p.first) return const_iterator(n.getCellRecord(p.second), ptrStack, this);
-            return const_iterator(NULL64, vector<pair<NodeId, SlotId>>{}, this);
+            return const_iterator(n.getCellRecord(p.second), ptrStack, this);
         }
     }
 }
@@ -293,8 +292,7 @@ IndexFile::const_iterator IndexFile::getIterator(ValueArray key) {
             LeafNode n(*this, currentId, keySize);
             pair<bool, SlotId> p = n.binarySearch(key);
             ptrStack.emplace_back(currentId, p.second);
-            if (p.first) return const_iterator(n.getCellRecord(p.second), ptrStack, this);
-            return const_iterator(NULL64, vector<pair<NodeId, SlotId>>{}, this);
+            return const_iterator(n.getCellRecord(p.second), ptrStack, this);
         }
     }
 }

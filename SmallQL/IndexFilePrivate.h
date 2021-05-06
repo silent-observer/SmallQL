@@ -842,10 +842,10 @@ public:
         pair<bool, SlotId> p = binarySearch(key, record);
         if (!p.first) return false;
 
-        CellId* deletionPlace = &cellId(p.second);
+        CellId deletionPlace = cellId(p.second);
         if (p.second != cellCount() - 1)
-            memmove(deletionPlace, deletionPlace + 1, (cellCount() - p.second - 1) * 2);
-        deallocateCell(*deletionPlace);
+            memmove(&cellId(p.second), &cellId(p.second) + 1, (cellCount() - p.second - 1) * 2);
+        deallocateCell(deletionPlace);
         cellCount()--;
         index.update(id);
         consistencyCheck();
@@ -931,12 +931,12 @@ bool InternalNode::deleteFromNode(const char* key, RecordId record) {
                 isChildEmpty = n.cellCount() == 0;
             }
 
-            CellId* deletionPlace = &cellId(p.second);
+            CellId deletionPlace = cellId(p.second);
             if (!isChildEmpty) {
                 LeafNode rightmost(index, rightmostId, keySize);
                 CellId rightmostCell = rightmost.cellId(rightmost.cellCount() - 1);
-                memcpy(getCellDataRaw(*deletionPlace), rightmost.getCellDataRaw(rightmostCell), keySize);
-                getCellRecordRaw(*deletionPlace) = rightmost.getCellRecordRaw(rightmostCell);
+                memcpy(getCellDataRaw(deletionPlace), rightmost.getCellDataRaw(rightmostCell), keySize);
+                getCellRecordRaw(deletionPlace) = rightmost.getCellRecordRaw(rightmostCell);
                 rightmost.deallocateCell(rightmostCell);
                 rightmost.cellCount()--;
                 index.update(rightmostId);
@@ -944,8 +944,8 @@ bool InternalNode::deleteFromNode(const char* key, RecordId record) {
             else {
                 index.deallocatePage(childId);
                 if (p.second != cellCount() - 1)
-                    memmove(deletionPlace, deletionPlace + 1, (cellCount() - p.second - 1) * 2);
-                deallocateCell(*deletionPlace);
+                    memmove(&cellId(p.second), &cellId(p.second) + 1, (cellCount() - p.second - 1) * 2);
+                deallocateCell(deletionPlace);
                 cellCount()--;
             }
             index.update(id);

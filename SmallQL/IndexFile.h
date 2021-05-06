@@ -53,6 +53,9 @@ public:
         return findKey(key.data());
     }
     bool deleteKey(const char* key, RecordId val);
+    inline bool deleteKey(const vector<char>& key, RecordId val) {
+        return deleteKey(key.data(), val);
+    }
 
     inline uint32_t getKeySize() {
         return keySize;
@@ -101,7 +104,7 @@ public:
 
         // Postfix increment
         inline CustomIterator operator++(int) { 
-            const_iterator tmp = *this; 
+            CustomIterator tmp = *this; 
             ++(*this); 
             return tmp; 
         }

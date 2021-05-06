@@ -65,6 +65,13 @@ struct SelectNode : public TableExpr {
     virtual QTablePtr algebrize(const SystemInfoManager& sysMan);
 };
 
+struct DeleteStmtNode : public StatementNode {
+    unique_ptr<TableName> tableName;
+    unique_ptr<ConditionNode> whereCond;
+    virtual void prettyPrint(ostream& s, int level) const;
+    virtual QTablePtr algebrize(const SystemInfoManager& sysMan);
+};
+
 struct SelectStmtNode : public StatementNode {
     SelectNode select;
     virtual void prettyPrint(ostream& s, int level) const;

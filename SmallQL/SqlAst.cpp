@@ -22,7 +22,7 @@ void SelectNode::prettyPrint(ostream& s, int level) const
     s << indent() << "} FROM {" << endl;
     from->prettyPrint(s, level + 1);
     if (whereCond) {
-        s << indent() << "} WHERE {" << endl << indent();
+        s << indent() << "} WHERE {" << endl << indent1();
         whereCond->prettyPrint(s, level);
         s << endl;
     }
@@ -37,6 +37,18 @@ void SelectNode::prettyPrint(ostream& s, int level) const
         s << endl;
     }
     
+    s << indent() << "}" << endl;
+}
+
+void DeleteStmtNode::prettyPrint(ostream& s, int level) const
+{
+    s << indent() << "DELETE FROM {" << endl;
+    tableName->prettyPrint(s, level + 1);
+    if (whereCond) {
+        s << indent() << "} WHERE {" << endl << indent1();
+        whereCond->prettyPrint(s, level);
+        s << endl;
+    }
     s << indent() << "}" << endl;
 }
 

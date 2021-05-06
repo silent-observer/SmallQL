@@ -32,6 +32,7 @@ public:
     virtual void visitDegroupifierQNode(DegroupifierQNode& n);
     virtual void visitSelectorNode(SelectorNode& n);
     virtual void visitInserterNode(InserterNode& n);
+    virtual void visitDeleterNode(DeleterNode& n);
     virtual void visitConstDataNode(ConstDataNode& n);
 };
 
@@ -163,6 +164,12 @@ void PreparerVisitor::visitInserterNode(InserterNode& n) {
     n.source->accept(this);
 }
 
+void PreparerVisitor::visitDeleterNode(DeleterNode& n) {
+    exec->queryType = QueryType::Delete;
+    exec->tableId = n.tableId;
+    n.source->accept(this);
+}
+
 void PreparerVisitor::visitConstDataNode(ConstDataNode& n) {
     auto seq = make_unique<ConstTableDS>(n.type, n.data);
     exec->sequences.push_back(move(seq));
@@ -173,10 +180,23 @@ vector<ValueArray> Executor::execute() {
     switch (queryType)
     {
     case QueryType::Select:
+        message = "<empty set>";
         return selectData(sequences.back().get());
     case QueryType::Insert: {
         Inserter inserter(sysMan, tableId);
         inserter.insert(sequences.back().get());
+        message = "Successfully inserted rows!";
+        return vector<ValueArray>();
+    }
+    case QueryType::Delete: {
+        Deleter deleter(sysMan, tableId);
+        deleter.prepareAll(sequences.back().get());
+
+        dataFiles.clear();
+        indexFiles.clear();
+
+        int count = deleter.deleteAll();
+        message = "Successfully deleted " + to_string(count) + " rows!";
         return vector<ValueArray>();
     }
     default:

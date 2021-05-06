@@ -45,6 +45,7 @@ struct AggrFuncProjectionQNode;
 struct DegroupifierQNode;
 struct SelectorNode;
 struct InserterNode;
+struct DeleterNode;
 struct ConstDataNode;
 struct ColumnQNode;
 struct AsteriskQNode;
@@ -71,6 +72,7 @@ public:
     virtual void visitDegroupifierQNode(DegroupifierQNode& n) = 0;
     virtual void visitSelectorNode(SelectorNode& n) = 0;
     virtual void visitInserterNode(InserterNode& n) = 0;
+    virtual void visitDeleterNode(DeleterNode& n) = 0;
     virtual void visitConstDataNode(ConstDataNode& n) = 0;
 };
 class QScalarNode::Visitor {
@@ -229,6 +231,15 @@ struct InserterNode : public QTableNode {
     }
 };
 
+struct DeleterNode : public QTableNode {
+    uint16_t tableId;
+    QTablePtr source;
+    DeleterNode() {}
+    virtual void accept(Visitor* v) {
+        v->visitDeleterNode(*this);
+    }
+};
+
 struct ConstDataNode : public QTableNode {
     vector<ValueArray> data;
     ConstDataNode() {}
@@ -351,6 +362,12 @@ public:
         qPtr = oldQPtr;
     }
     virtual void visitInserterNode(InserterNode& n) {
+        auto oldQPtr = qPtr;
+        qPtr = &n.source;
+        n.source->accept(this);
+        qPtr = oldQPtr;
+    }
+    virtual void visitDeleterNode(DeleterNode& n) {
         auto oldQPtr = qPtr;
         qPtr = &n.source;
         n.source->accept(this);

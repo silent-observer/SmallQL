@@ -100,7 +100,7 @@ public:
         friend bool operator!= (const CustomIterator& a, const CustomIterator& b) { 
             return a.recordId != b.recordId; 
         };
-        RecordId getRecordId() const {
+        inline RecordId getRecordId() const {
             return recordId;
         }
     };

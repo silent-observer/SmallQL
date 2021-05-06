@@ -182,7 +182,10 @@ int main()
                 Executor exec(sysMan);
                 exec.prepare(move(qtree));
                 auto result = exec.execute();
-                cout << prettyPrintTable(result, exec.resultType);
+                if (result.size() == 0)
+                    cout << exec.message << endl;
+                else
+                    cout << prettyPrintTable(result, exec.resultType);
             }
         }
         catch (const SQLException& e) {

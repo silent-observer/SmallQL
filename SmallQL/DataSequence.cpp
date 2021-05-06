@@ -15,12 +15,14 @@ void TableFullScanDS::reset() {
     iter = makeConst(data).begin();
     if (iter != makeConst(data).end()) {
         *recordData = schema.decode(*iter);
+        record.recordId = iter.getRecordId();
     }
 }
 void TableFullScanDS::advance() {
     if (iter == makeConst(data).end()) return;
     iter++;
     *recordData = schema.decode(*iter);
+    record.recordId = iter.getRecordId();
 }
 bool TableFullScanDS::hasEnded() const {
     return iter == makeConst(data).end();
@@ -45,11 +47,13 @@ void TableIndexScanDS::reset() {
     iter = index.getIterator(from);
     if (iter == index.end()) return;
 
-    *recordData = schema.decode(data.readRecord(*iter));
+    record.recordId = *iter;
+    *recordData = schema.decode(data.readRecord(record.recordId));
     if (!incFrom) {
         while (index.getKeySchema().compare(from, *recordData) == 0) {
             iter++;
-            *recordData = schema.decode(data.readRecord(*iter));
+            record.recordId = *iter;
+            *recordData = schema.decode(data.readRecord(record.recordId));
             if (iter == index.end()) return;
         }
     }
@@ -57,7 +61,8 @@ void TableIndexScanDS::reset() {
 void TableIndexScanDS::advance() {
     if (iter == index.end()) return;
     iter++;
-    *recordData = schema.decode(data.readRecord(*iter));
+    record.recordId = *iter;
+    *recordData = schema.decode(data.readRecord(record.recordId));
     int cmpVal = index.getKeySchema().compare(to, *recordData);
     if (cmpVal < 0 || !incTo && cmpVal == 0)
         iter = index.end();
@@ -94,6 +99,7 @@ void ProjectorDS::update() {
     const ValueArray& input = *source->get().record;
     for (int i = 0; i < columns.size(); i++)
         (*recordData)[i] = input[columns[i]];
+    record.recordId = source->get().recordId;
 }
 
 class CondCheckerVisitor : public QConditionNode::Visitor {
@@ -182,6 +188,7 @@ void FuncProjectorDS::update() {
         funcs[i]->accept(visitor.get());
         (*recordData)[index] = visitor->getResult();
     }
+    record.recordId = source->get().recordId;
 }
 
 
@@ -213,7 +220,10 @@ void FilterDS::update() {
     visitor->updateRecord(record.record);
     while (!source->hasEnded()) {
         cond->accept(visitor.get());
-        if (visitor->getResult()) return;
+        if (visitor->getResult()) {
+            record.recordId = source->get().recordId;
+            return;
+        }
         source->advance();
         record.record = source->get().record;
         visitor->updateRecord(record.record);
@@ -243,6 +253,7 @@ void UnionDS::update() {
     while (currentIndex < sources.size()) {
         if (!sources[currentIndex]->hasEnded()) {
             record.record = sources[currentIndex]->get().record;
+            record.recordId = sources[currentIndex]->get().recordId;
             return;
         }
         currentIndex++;
@@ -527,8 +538,14 @@ bool Inserter::insert(RecordPtr record) {
         auto keys = index.getKeySchema().encode(keyValues);
         bool result = index.addKey(keys, recordId);
         if (!result) {
+
+            for (IndexFile& index : indexFiles) {
+                ValueArray keyValues = index.getKeySchema().narrow(decoded);
+                auto keys = index.getKeySchema().encode(keyValues);
+                index.deleteKey(keys, recordId);
+            }
+
             dataFile.deleteRecord(recordId);
-            // TODO: delete from indexes too
             return false;
         }
     }
@@ -543,4 +560,39 @@ bool Inserter::insert(DataSequence* source) {
         source->advance();
     }
     return true;
+}
+
+
+Deleter::Deleter(const SystemInfoManager& sysMan, uint16_t tableId)
+    : sysMan(sysMan), tableId(tableId) {}
+
+void Deleter::prepareAll(DataSequence* source) {
+    source->reset();
+    while (!source->hasEnded()) {
+        data.push_back(make_pair(source->get().recordId, *source->get().record));
+        source->advance();
+    }
+}
+
+int Deleter::deleteAll() {
+    DataFile dataFile(sysMan, tableId);
+    vector<IndexFile> indexFiles;
+    const vector<uint16_t>& indexes = sysMan.getTableInfo(tableId).indexes;
+    for (uint16_t indexId : indexes) {
+        const Schema& keySchema = sysMan.getIndexSchema(tableId, indexId);
+        indexFiles.emplace_back(tableId, indexId, keySchema);
+    }
+
+    int count = 0;
+    for (const auto& p : data) {
+        bool result = dataFile.deleteRecord(p.first);
+        if (result) count++;
+
+        for (auto& index : indexFiles) {
+            ValueArray keyValues = index.getKeySchema().narrow(p.second);
+            auto keys = index.getKeySchema().encode(keyValues);
+            index.deleteKey(keys, p.first);
+        }
+    }
+    return count;
 }

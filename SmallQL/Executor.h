@@ -12,7 +12,8 @@ using QTablePtr = unique_ptr<QTableNode>;
 
 enum class QueryType {
     Select,
-    Insert
+    Insert,
+    Delete
 };
 
 class Executor {
@@ -27,6 +28,7 @@ public:
     QueryType queryType;
     uint16_t tableId;
     IntermediateType resultType;
+    string message;
 
     Executor(SystemInfoManager& sysMan): sysMan(sysMan) {}
     void prepare(QTablePtr tree);

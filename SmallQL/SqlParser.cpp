@@ -13,6 +13,9 @@ unique_ptr<StatementNode> Parser::parse() {
     else if (l.get().text == "INSERT") {
         return parseInsert();
     }
+    else if (l.get().text == "DELETE") {
+        return parseDelete();
+    }
     else if (l.get().text == "CREATE") {
         l.advance();
         if (l.get().isKeyword("TABLE"))
@@ -120,6 +123,21 @@ unique_ptr<InsertStmtNode> Parser::parseInsert() {
     l.advance();
     result->tableName = parseTableName();
     result->insertData = parseInsertData();
+    check(TokenType::Semicolon, "Expected semicolon");
+    return result;
+}
+
+unique_ptr<DeleteStmtNode> Parser::parseDelete() {
+    auto result = l.createPtr<DeleteStmtNode>();
+    l.advance();
+    checkEOS();
+    checkKeyword("FROM", "Expected FROM");
+    l.advance();
+    result->tableName = parseTableName();
+    if (l.get().isKeyword("WHERE")) {
+        l.advance();
+        result->whereCond = parseCondition();
+    }
     check(TokenType::Semicolon, "Expected semicolon");
     return result;
 }
