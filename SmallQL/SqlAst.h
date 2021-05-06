@@ -195,3 +195,9 @@ struct CreateTableNode : public StatementNode {
     virtual void prettyPrint(ostream& s, int level) const;
     virtual QTablePtr algebrize(const SystemInfoManager& sysMan) { return nullptr; };
 };
+
+struct DropTableNode : public StatementNode {
+    string name;
+    virtual void prettyPrint(ostream& s, int level) const;
+    virtual QTablePtr algebrize(const SystemInfoManager& sysMan) { return nullptr; };
+};

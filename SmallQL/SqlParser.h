@@ -138,6 +138,7 @@ private:
     Value parseValue();
 
     unique_ptr<CreateTableNode> parseCreateTable();
+    unique_ptr<DropTableNode> parseDropTable();
     unique_ptr<ColumnSpecNode> parseColumnSpec();
 
     inline void check(TokenType type, string errorCause);

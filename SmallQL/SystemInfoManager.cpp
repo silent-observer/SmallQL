@@ -189,3 +189,47 @@ void SystemInfoManager::createPrimaryIndex(uint16_t tableId) {
     DataFile table(*this, tableId);
     IndexFile index(tableId, 0, tables[tableId].primaryKeys);
 }
+
+void SystemInfoManager::dropTable(string name) {
+    uint16_t tableId = getTableId(name);
+    DataFile tablesFile(-1, tablesSchema.getSize());
+    DataFile columnsFile(-2, columnsSchema.getSize());
+    DataFile indexesFile(-3, indexesSchema.getSize());
+    DataFile indexColumnsFile(-4, indexColumnsSchema.getSize());
+
+    for (auto i = tablesFile.begin(); i != tablesFile.end(); i++) {
+        ValueArray decoded = tablesSchema.decode(*i);
+        if (decoded[0].intVal == tableId) {
+            tablesFile.deleteRecord(i.getRecordId());
+            break;
+        }
+    }
+    for (auto i = columnsFile.begin(); i != columnsFile.end(); i++) {
+        ValueArray decoded = columnsSchema.decode(*i);
+        if (decoded[0].intVal == tableId)
+            tablesFile.deleteRecord(i.getRecordId());
+    }
+    vector<uint16_t> indexIds;
+    for (auto i = indexesFile.begin(); i != indexesFile.end(); i++) {
+        ValueArray decoded = indexesSchema.decode(*i);
+        if (decoded[0].intVal == tableId) {
+            indexIds.push_back(decoded[1].intVal);
+            tablesFile.deleteRecord(i.getRecordId());
+        }
+    }
+    for (auto i = indexColumnsFile.begin(); i != indexColumnsFile.end(); i++) {
+        ValueArray decoded = indexColumnsSchema.decode(*i);
+        if (decoded[0].intVal == tableId)
+            tablesFile.deleteRecord(i.getRecordId());
+    }
+
+    tableNames.erase(name);
+    tables.erase(tableId);
+    remove((to_string(tableId) + ".dbd").c_str());
+    for (uint16_t indexId : indexIds) {
+        string indexName = indexes.at(make_pair(tableId, indexId)).name;
+        indexNames.erase(make_pair(tableId, indexName));
+        indexes.erase(make_pair(tableId, indexId));
+        remove((to_string(tableId) + "_" + to_string(indexId) + ".dbi").c_str());
+    }
+}

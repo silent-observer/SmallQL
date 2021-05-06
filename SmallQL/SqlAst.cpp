@@ -195,3 +195,7 @@ void CreateTableNode::prettyPrint(ostream& s, int level) const {
     }
     s << "}" << endl;
 }
+
+void DropTableNode::prettyPrint(ostream& s, int level) const {
+    s << indent() << "DROP TABLE " << name << endl;
+}

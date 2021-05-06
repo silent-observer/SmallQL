@@ -89,7 +89,7 @@ public:
 
         // Postfix increment
         CustomIterator operator++(int) { 
-            const_iterator tmp = *this; 
+            CustomIterator tmp = *this; 
             ++(*this); 
             return tmp; 
         }
@@ -100,6 +100,9 @@ public:
         friend bool operator!= (const CustomIterator& a, const CustomIterator& b) { 
             return a.recordId != b.recordId; 
         };
+        RecordId getRecordId() const {
+            return recordId;
+        }
     };
     using const_iterator = CustomIterator<const char*>;
     using iterator = CustomIterator<char*>;

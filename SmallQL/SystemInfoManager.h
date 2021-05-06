@@ -28,6 +28,7 @@ public:
     void load();
     uint16_t addTable(string name);
     uint16_t addColumn(uint16_t tableId, string name, string type, bool isPrimary, bool canBeNull, string defaultValue="");
+    void dropTable(string name);
     void createPrimaryIndex(uint16_t tableId);
 
     inline bool tableExists(string name) const {

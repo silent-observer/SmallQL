@@ -19,6 +19,12 @@ unique_ptr<StatementNode> Parser::parse() {
             return parseCreateTable();
         throw ParserException("Unknown CREATE command", l.getPos());
     }
+    else if (l.get().text == "DROP") {
+        l.advance();
+        if (l.get().isKeyword("TABLE"))
+            return parseDropTable();
+        throw ParserException("Unknown CREATE command", l.getPos());
+    }
     else
         throw ParserException("Unknown command", l.getPos());
 }
@@ -503,5 +509,15 @@ unique_ptr<ColumnSpecNode> Parser::parseColumnSpec() {
         }
     }
     
+    return result;
+}
+
+unique_ptr<DropTableNode> Parser::parseDropTable() {
+    auto result = l.createPtr<DropTableNode>();
+    l.advance();
+    check(TokenType::Id, "Expected table name");
+    result->name = l.pop().text;
+    check(TokenType::Semicolon, "Expected semicolon");
+    l.advance();
     return result;
 }
