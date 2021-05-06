@@ -162,6 +162,19 @@ RecordId IndexFile::findKey(const char* key) {
     }
 }
 
+bool IndexFile::deleteKey(const char* key, RecordId val) {
+    NodeId currentId = *rootPageId;
+    Page page = retrieve(currentId);
+    if (page[0] == 0x01) { // Internal
+        InternalNode n(*this, currentId, keySize);
+        return n.deleteFromNode(key, val);
+    }
+    else { // Leaf
+        LeafNode n(*this, currentId, keySize);
+        return n.deleteFromNode(key, val);
+    }
+}
+
 void IndexFile::fullConsistencyCheck(NodeId id) {
 #ifdef CHECKS_ENABLED
     Page page = retrieve(id);

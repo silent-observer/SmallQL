@@ -15,6 +15,7 @@ protected:
     IndexFile& index;
 public:
     uint16_t maxCellCount;
+    uint16_t minCellCount;
     TreeNode(IndexFile& index, uint16_t keySize, uint16_t cellPtrOffset, 
         uint16_t cellHeader, uint16_t fclStartOffset)
     : TreeNode(index, index.allocateFreePage(), keySize, 
@@ -29,7 +30,8 @@ public:
         , cellHeader(cellHeader)
         , cellPtrOffset(cellPtrOffset)
         , fclStartOffset(fclStartOffset)
-        , maxCellCount(0) {}
+        , maxCellCount(0)
+        , minCellCount(0) {}
     inline uint16_t& cellCount() {
         return *(uint16_t*)(page + 0x02);
     }
@@ -216,6 +218,7 @@ public:
         : TreeNode(index, id, keySize, 0x0A, 12, 0x08)
         , keySize(keySize) {
         maxCellCount = index.cellsPerInternalPage;
+        minCellCount = maxCellCount / 2;
     }
 
     inline NodeId& rightPtr() {
@@ -563,6 +566,21 @@ public:
         }
         return false;
     }
+
+    NodeId findRightmostNode() {
+        NodeId currentId = rightPtr();
+        while (true) {
+            Page page = index.retrieve(currentId);
+            if (page[0] == 0x01) { // Internal
+                InternalNode n(index, currentId, keySize);
+                currentId = n.rightPtr();
+            }
+            else
+                return currentId;
+        }
+    }
+
+    bool deleteFromNode(const char* key, RecordId record);
 };
 
 class LeafNode : public TreeNode {
@@ -584,6 +602,7 @@ public:
         : TreeNode(index, id, keySize, 0x06, 8, 0x04)
         , keySize(keySize) {
         maxCellCount = index.cellsPerLeafPage;
+        minCellCount = maxCellCount / 2;
     }
 
     inline void fillNextSlot(const char* key, RecordId record) {
@@ -818,6 +837,20 @@ public:
         }
         return false;
     }
+
+    bool deleteFromNode(const char* key, RecordId record) {
+        pair<bool, SlotId> p = binarySearch(key, record);
+        if (!p.first) return false;
+
+        CellId* deletionPlace = &cellId(p.second);
+        if (p.second != cellCount() - 1)
+            memmove(deletionPlace, deletionPlace + 1, (cellCount() - p.second - 1) * 2);
+        deallocateCell(*deletionPlace);
+        cellCount()--;
+        index.update(id);
+        consistencyCheck();
+        return true;
+    }
 };
 
 inline TreeNode::SiblingResult TreeNode::getSiblings() {
@@ -880,3 +913,55 @@ void InternalNode::insertIntoChild(char* key, RecordId record) {
         internalConsistencyCheck();
         n.consistencyCheck();
 }
+
+bool InternalNode::deleteFromNode(const char* key, RecordId record) {
+        pair<bool, SlotId> p = binarySearch(key, record);
+        if (p.first) {
+            NodeId childId = p.second == cellCount() ? rightPtr() : getCellLeftPtr(p.second);
+            Page childPage = index.retrieve(childId);
+            NodeId rightmostId = childId;
+            bool isChildEmpty;
+            if (childPage[0] == 0x01) { // Internal
+                InternalNode n(index, childId, keySize);
+                rightmostId = n.findRightmostNode();
+                isChildEmpty = n.cellCount() == 0;
+            }
+            else {
+                LeafNode n(index, childId, keySize);
+                isChildEmpty = n.cellCount() == 0;
+            }
+
+            CellId* deletionPlace = &cellId(p.second);
+            if (!isChildEmpty) {
+                LeafNode rightmost(index, rightmostId, keySize);
+                CellId rightmostCell = rightmost.cellId(rightmost.cellCount() - 1);
+                memcpy(getCellDataRaw(*deletionPlace), rightmost.getCellDataRaw(rightmostCell), keySize);
+                getCellRecordRaw(*deletionPlace) = rightmost.getCellRecordRaw(rightmostCell);
+                rightmost.deallocateCell(rightmostCell);
+                rightmost.cellCount()--;
+                index.update(rightmostId);
+            }
+            else {
+                index.deallocatePage(childId);
+                if (p.second != cellCount() - 1)
+                    memmove(deletionPlace, deletionPlace + 1, (cellCount() - p.second - 1) * 2);
+                deallocateCell(*deletionPlace);
+                cellCount()--;
+            }
+            index.update(id);
+            consistencyCheck();
+            return true;
+        }
+        else {
+            NodeId childId = p.second == cellCount() ? rightPtr() : getCellLeftPtr(p.second);
+            Page childPage = index.retrieve(childId);
+            if (page[0] == 0x01) { // Internal
+                InternalNode n(index, childId, keySize);
+                return n.deleteFromNode(key, record);
+            }
+            else { // Leaf
+                LeafNode n(index, childId, keySize);
+                return n.deleteFromNode(key, record);
+            }
+        }
+    }

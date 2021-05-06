@@ -52,6 +52,7 @@ public:
     inline RecordId findKey(const vector<char>& key) {
         return findKey(key.data());
     }
+    bool deleteKey(const char* key, RecordId val);
 
     inline uint32_t getKeySize() {
         return keySize;
