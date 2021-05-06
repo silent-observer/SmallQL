@@ -463,13 +463,19 @@ shared_ptr<DataType> typeCheckFunc(string name, vector<shared_ptr<DataType>> inp
 }
 
 shared_ptr<DataType> typeCheckAggrFunc(string name, shared_ptr<DataType> input) {
-    if (name == "SUM") {
+    if (name == "SUM" || name == "AVG") {
         if (is<DoubleType>(input))
             return make_shared<DoubleType>();
         else if (is<IntType>(input) || is<ShortIntType>(input) || is<ByteType>(input))
             return make_shared<IntType>();
         else
             throw TypeException("Invalid type in " + name + " expression");
+    }
+    else if (name == "MIN" || name == "MAX") {
+        return input;
+    }
+    else if (name == "COUNT") {
+        return make_shared<IntType>();
     }
     return nullptr;
 }

@@ -96,4 +96,63 @@ void GroupComputerVisitor::visitAggrFuncQNode(AggrFuncQNode& n) {
         }
         result = v;
     }
+    else if (n.name == "AVG") {
+        bool isDouble = is<DoubleType>(n.type.type);
+        Value v = isDouble ? Value(0.0) : Value(0);
+        int count = 0;
+        for (const auto& groupRow : *group) {
+            record = &groupRow;
+            n.child->accept(this);
+            if (result.type == ValueType::Null) continue;
+            if (isDouble)
+                v.doubleVal += result.doubleVal;
+            else
+                v.intVal += result.intVal;
+            count++;
+        }
+
+        if (isDouble)
+            v.doubleVal /= count;
+        else
+            v.intVal /= count;
+        result = v;
+    }
+    else if (n.name == "MIN") {
+        Value v = Value(ValueType::MaxVal);
+        for (const auto& groupRow : *group) {
+            record = &groupRow;
+            n.child->accept(this);
+            if (result.type == ValueType::Null) continue;
+            if (n.child->type.compare(result, v) < 0)
+                v = result;
+        }
+        result = v;
+        if (result.type == ValueType::MaxVal)
+            result.type = ValueType::Null;
+    }
+    else if (n.name == "MAX") {
+        Value v = Value(ValueType::MinVal);
+        for (const auto& groupRow : *group) {
+            record = &groupRow;
+            n.child->accept(this);
+            if (result.type == ValueType::Null) continue;
+            if (n.child->type.compare(result, v) > 0)
+                v = result;
+        }
+        result = v;
+        if (result.type == ValueType::MinVal)
+            result.type = ValueType::Null;
+    }
+    else if (n.name == "COUNT" && is<AsteriskQNode>(n.child)) {
+        result = Value(group->size());
+    }
+    else if (n.name == "COUNT") {
+        int count = 0;
+        for (const auto& groupRow : *group) {
+            record = &groupRow;
+            n.child->accept(this);
+            if (result.type != ValueType::Null) count++;
+        }
+        result = Value(count);
+    }
 }

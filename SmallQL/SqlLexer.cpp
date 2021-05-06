@@ -96,7 +96,7 @@ const static set<string> FUNCTION_NAME_SET = {
 };
 
 const static set<string> AGGR_FUNCTION_NAME_SET = {
-    "SUM"
+    "SUM", "MIN", "MAX", "AVG", "COUNT"
 };
 
 const regex TYPE_REGEX(R"((INTEGER|INT|BYTE|TINYINT|SMALLINT|DOUBLE|VARCHAR\([0-9]+\)).*)",

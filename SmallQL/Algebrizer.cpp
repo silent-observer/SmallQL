@@ -419,11 +419,13 @@ QScalarPtr AggrFuncExpr::algebrizeWithContext(
     auto result = make_unique<AggrFuncQNode>();
     result->name = name;
     result->child = child->algebrizeWithContext(sysMan, preaggrType, preaggrType);
-    if (is<AsteriskQNode>(result->child)) {
-        throw TypeException("Cannot use * outside of SELECT query");
+    if (name != "COUNT") {
+        if (is<AsteriskQNode>(result->child)) {
+            throw TypeException("Cannot use * outside of SELECT query");
+        }
+        if (result->child->type.isAggregate)
+            throw TypeException("Cannot have nested aggregate functions");
     }
-    if (result->child->type.isAggregate)
-        throw TypeException("Cannot have nested aggregate functions");
     auto dataType = typeCheckAggrFunc(name, result->child->type.type);
     string text = AstNode::prettyPrint();
     result->type = IntermediateTypeEntry(text, "", dataType, true, true, false);
