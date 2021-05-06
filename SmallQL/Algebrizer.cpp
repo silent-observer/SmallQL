@@ -474,6 +474,11 @@ QCondPtr CompareConditionNode::algebrizeWithContext(
     if (is<AsteriskQNode>(result->left) || is<AsteriskQNode>(result->right)) {
         throw TypeException("Cannot use * outside of SELECT query");
     }
+    if (!typeCheckComparable(result->left->type.type, result->right->type.type))
+        throw TypeException("Cannot compare " + 
+            result->left->type.type->toString() + " and " + 
+            result->right->type.type->toString());
+
     switch (condType)
     {
     case CompareType::Equal:

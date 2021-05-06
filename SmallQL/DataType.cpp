@@ -125,6 +125,11 @@ string Value::toString() const {
     ss << *this;
     return ss.str();
 }
+string DataType::toString() const {
+    stringstream ss;
+    ss << *this;
+    return ss.str();
+}
 ostream& operator<<(ostream& os, const ValueArray& values) {
     os << "[";
     for (int i = 0; i < values.size(); i++) {
@@ -445,6 +450,16 @@ shared_ptr<DataType> parseDataType(string str) {    string s = str;
     else {
         return NULL;
     }
+}
+
+bool typeCheckComparable(shared_ptr<DataType> a, shared_ptr<DataType> b) {
+    if (is<NullType>(a) || is<NullType>(b)) 
+        return true;
+    if (is<VarCharType>(a))
+        return is<VarCharType>(b);
+    if (is<ByteType>(a) ||is<ShortIntType>(a) || is<IntType>(a) || is<DoubleType>(a))
+        return is<ByteType>(b) ||is<ShortIntType>(b) || is<IntType>(b) || is<DoubleType>(b);
+    return false;
 }
 
 shared_ptr<DataType> typeCheckFunc(string name, vector<shared_ptr<DataType>> inputs) {

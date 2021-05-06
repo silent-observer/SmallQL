@@ -47,7 +47,7 @@ struct Value {
     friend ostream& operator<<(ostream& os, const Value& v);
     friend int compareValue(const Value& a, const Value& b);
     unique_ptr<DataType> defaultType() const;
-    virtual string toString() const;
+    string toString() const;
 
     void convertToDouble();
 };
@@ -67,6 +67,7 @@ public:
     virtual Value decode(const char* data) const = 0;
     virtual void print(ostream& os) const = 0;
     friend ostream& operator<<(ostream& os, const DataType& t);
+    string toString() const;
 };
 
 class NullType : public DataType {
@@ -209,6 +210,7 @@ public:
 };
 
 shared_ptr<DataType> parseDataType(string str);
+bool typeCheckComparable(shared_ptr<DataType> a, shared_ptr<DataType> b);
 shared_ptr<DataType> typeCheckFunc(string name, vector<shared_ptr<DataType>> inputs);
 shared_ptr<DataType> typeCheckAggrFunc(string name, shared_ptr<DataType> input);
 
