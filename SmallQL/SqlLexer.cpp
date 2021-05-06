@@ -22,7 +22,7 @@ void Lexer::advance() {
         lexNumber();
     else if (isalpha(c))
         lexWord();
-    else if (c == '"')
+    else if (c == '"' || c == '\'')
         lexString();
 #define CHECK(character, type)  \
     else if (c == character) { \
@@ -131,7 +131,7 @@ void Lexer::lexWord() {
 }
 
 void Lexer::lexString() {
-    int endIndex = source.find('"', pos + 1);
+    int endIndex = source.find(source[pos], pos + 1);
     string text;
     if (endIndex == string::npos) {
         throw ParserException("Unclosed string literal", pos);
