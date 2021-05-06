@@ -70,7 +70,9 @@ public:
             : recordId(recordId)
             , value(NULL)
             , dataFile(dataFile){
-            if (*dataFile->totalRecordCount != 0)
+            while (this->recordId < *dataFile->totalRecordCount && dataFile->readRecord(this->recordId) == NULL)
+                this->recordId++;
+            if (this->recordId < *dataFile->totalRecordCount)
                 updateValue();
         }
 
