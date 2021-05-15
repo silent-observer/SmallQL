@@ -140,6 +140,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="Algebrizer.cpp" />
+    <ClCompile Include="BlobManager.cpp" />
     <ClCompile Include="ComputerVisitor.cpp" />
     <ClCompile Include="ConditionOptimizer.cpp" />
     <ClCompile Include="DataFile.cpp" />
@@ -161,6 +162,7 @@
     <ClCompile Include="SystemInfoManager.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="BlobManager.h" />
     <ClInclude Include="Common.h" />
     <ClInclude Include="ComputerVisitor.h" />
     <ClInclude Include="DataFile.h" />
