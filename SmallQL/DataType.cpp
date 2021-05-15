@@ -25,6 +25,8 @@ Value::Value(ValueType type) : type(type) {
     case ValueType::Double:
         doubleVal = 0;
         break;
+    case ValueType::Datetime:
+        datetimeVal = Datetime();
     case ValueType::String:
         new(&stringVal) string();
         break;
@@ -35,6 +37,7 @@ Value::Value(ValueType type) : type(type) {
 Value::Value(int64_t intVal) : type(ValueType::Integer), intVal(intVal) {}
 Value::Value(double doubleVal) : type(ValueType::Double), doubleVal(doubleVal) {}
 Value::Value(string stringVal) : type(ValueType::String), stringVal(stringVal) {}
+Value::Value(Datetime datetimeVal) : type(ValueType::Datetime), datetimeVal(datetimeVal) {}
 Value& Value::operator=(const Value& v) {
     if (this == &v) return *this;
     type = v.type;
@@ -53,6 +56,9 @@ Value& Value::operator=(const Value& v) {
     case ValueType::String:
         new(&stringVal) string(v.stringVal);
         break;
+    case ValueType::Datetime:
+        datetimeVal = v.datetimeVal;
+        break;
     default:
         break;
     }
@@ -70,6 +76,8 @@ unique_ptr<DataType> Value::defaultType() const {
         return make_unique<DoubleType>();
     case ValueType::String:
         return make_unique<VarCharType>(stringVal.size());
+    case ValueType::Datetime:
+        return make_unique<DatetimeType>();
     default:
         break;
     }
@@ -83,6 +91,7 @@ void Value::convertToDouble() {
     case ValueType::MinVal:
         return;
     case ValueType::String:
+    case ValueType::Datetime:
         doubleVal = NAN;
         break;
     case ValueType::Integer:
@@ -114,6 +123,9 @@ ostream& operator<<(ostream& os, const Value& v) {
         break;
     case ValueType::String:
         os << "String{\"" << v.stringVal << "\"}";
+        break;
+    case ValueType::Datetime:
+        os << "Datetime{\"" << v.datetimeVal << "\"}";
         break;
     default:
         break;
@@ -185,6 +197,8 @@ int compareValue(const Value& a, const Value& b) {
         return cmp(a.doubleVal, b.doubleVal);
     case ValueType::String: 
         return a.stringVal.compare(b.stringVal);
+    case ValueType::Datetime: 
+        return a.datetimeVal.compare(b.datetimeVal);
     }
 }
 
@@ -264,6 +278,33 @@ Value DoubleType::decode(const char* data) const {
 }
 void DoubleType::print(ostream& os) const {
     os << "DOUBLE";
+}
+
+bool DatetimeType::checkVal(Value val) const {
+    return val.type == ValueType::Datetime;
+}
+void DatetimeType::encode(Value val, char* out) const {
+    assert(checkVal(val));
+    *(uint16_t*)out = val.datetimeVal.year;
+    *(uint8_t*)(out + 2) = val.datetimeVal.month;
+    *(uint8_t*)(out + 3) = val.datetimeVal.day;
+    *(uint8_t*)(out + 4) = val.datetimeVal.hour;
+    *(uint8_t*)(out + 5) = val.datetimeVal.minute;
+    *(uint8_t*)(out + 6) = val.datetimeVal.second;
+    *(uint8_t*)(out + 7) = 0;
+}
+Value DatetimeType::decode(const char* data) const {
+    Value result(ValueType::Datetime);
+    result.datetimeVal.year = *(uint16_t*)data;
+    result.datetimeVal.month = *(uint8_t*)(data + 2);
+    result.datetimeVal.day = *(uint8_t*)(data + 3);
+    result.datetimeVal.hour = *(uint8_t*)(data + 4);
+    result.datetimeVal.minute = *(uint8_t*)(data + 5);
+    result.datetimeVal.second = *(uint8_t*)(data + 6);
+    return result;
+}
+void DatetimeType::print(ostream& os) const {
+    os << "DATETIME";
 }
 
 bool VarCharType::checkVal(Value val) const {
@@ -442,6 +483,7 @@ shared_ptr<DataType> parseDataType(string str) {    string s = str;
     else if (mainName == "SMALLINT") return make_shared<ShortIntType>();
     else if (mainName == "TINYINT" || mainName == "BYTE") return make_shared<ByteType>();
     else if (mainName == "DOUBLE") return make_shared<DoubleType>();
+    else if (mainName == "DATETIME") return make_shared<DatetimeType>();
     else if (mainName == "VARCHAR") {
         if (params == "") return NULL;
         int val = stoi(params);
@@ -459,6 +501,8 @@ bool typeCheckComparable(shared_ptr<DataType> a, shared_ptr<DataType> b) {
         return is<VarCharType>(b);
     if (is<ByteType>(a) ||is<ShortIntType>(a) || is<IntType>(a) || is<DoubleType>(a))
         return is<ByteType>(b) ||is<ShortIntType>(b) || is<IntType>(b) || is<DoubleType>(b);
+    if (is<DatetimeType>(a))
+        return is<DatetimeType>(b);
     return false;
 }
 
@@ -480,6 +524,14 @@ shared_ptr<DataType> typeCheckFunc(string name, vector<shared_ptr<DataType>> inp
             if (!is<VarCharType>(t))
                 throw TypeException("Invalid type in CONCAT expression");
         return make_shared<IntType>();
+    }
+    else if (name == "TO_DATETIME") {
+        if (inputs.size() == 0 || inputs.size() > 2)
+            throw TypeException("TO_DATETIME supports only 1 or 2 arguments");
+        for (auto& t : inputs)
+            if (!is<VarCharType>(t))
+                throw TypeException("Invalid type in TO_DATETIME expression");
+        return make_shared<DatetimeType>();
     }
     return nullptr;
 }

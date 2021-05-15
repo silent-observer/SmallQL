@@ -7,6 +7,7 @@
 #include <string>
 #include <memory>
 #include "Common.h"
+#include "Datetime.h"
 
 using namespace std;
 
@@ -15,6 +16,7 @@ enum class ValueType {
     Integer,
     Double,
     String,
+    Datetime,
     MinVal,
     MaxVal
 };
@@ -26,6 +28,7 @@ struct Value {
         int64_t intVal;
         double doubleVal;
         string stringVal;
+        Datetime datetimeVal;
     };
 
     Value() : type(ValueType::Null) {};
@@ -44,6 +47,7 @@ struct Value {
     inline Value(int8_t v) : Value((int64_t)v) {}
     Value(double doubleVal);
     Value(string stringVal);
+    Value(Datetime datetimeVal);
     friend ostream& operator<<(ostream& os, const Value& v);
     friend int compareValue(const Value& a, const Value& b);
     unique_ptr<DataType> defaultType() const;
@@ -179,6 +183,16 @@ public:
     void print(ostream& os) const;
 };
 
+class DatetimeType : public FixedLengthType {
+public:
+    DatetimeType(): FixedLengthType(8) {}
+
+    bool checkVal(Value val) const;
+    void encode(Value val, char* out) const;
+    Value decode(const char* data) const;
+    void print(ostream& os) const;
+};
+
 class VarCharType : public FixedLengthType {
 private:
     uint16_t maxSize;
@@ -190,11 +204,6 @@ public:
     Value decode(const char* data) const;
     void print(ostream& os) const;
 };
-
-template<typename T>
-static inline int cmp(T x, T y) {
-    return x > y ? 1 : x < y ? -1 : 0;
-}
 
 class TypeException : public SQLException
 {

@@ -145,6 +145,7 @@
     <ClCompile Include="DataFile.cpp" />
     <ClCompile Include="DataSequence.cpp" />
     <ClCompile Include="DataType.cpp" />
+    <ClCompile Include="Datetime.cpp" />
     <ClCompile Include="DDLExecutor.cpp" />
     <ClCompile Include="Executor.cpp" />
     <ClCompile Include="GroupDataSequence.cpp" />
@@ -165,6 +166,7 @@
     <ClInclude Include="DataFile.h" />
     <ClInclude Include="DataSequence.h" />
     <ClInclude Include="DataType.h" />
+    <ClInclude Include="Datetime.h" />
     <ClInclude Include="DDLExecutor.h" />
     <ClInclude Include="Executor.h" />
     <ClInclude Include="GroupDataSequence.h" />

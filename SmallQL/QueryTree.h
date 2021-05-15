@@ -240,6 +240,7 @@ struct DeleterNode : public QTableNode {
     }
 };
 
+// Todo: functions in const data nodes
 struct ConstDataNode : public QTableNode {
     vector<ValueArray> data;
     ConstDataNode() {}

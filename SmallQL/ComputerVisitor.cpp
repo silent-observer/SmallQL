@@ -1,4 +1,6 @@
 #include "ComputerVisitor.h"
+#include <sstream>
+#include <iomanip>
 
 void ComputerVisitor::visitConstScalarQNode(ConstScalarQNode& n) {
     result = n.data;
@@ -78,6 +80,25 @@ void ComputerVisitor::visitFuncQNode(FuncQNode& n) {
             v.stringVal += result.stringVal;
         }
         result = v;
+    } else if (n.name == "TO_DATETIME") {
+        string format = "%Y-%m-%d %H:%M:%S";
+        if (n.children.size() == 2) {
+            n.children[0]->accept(this);
+            if (result.type == ValueType::Null) return;
+            format = result.stringVal;
+        }
+        
+        n.children.back()->accept(this);
+        if (result.type == ValueType::Null) return;
+        stringstream ss(result.stringVal);
+        tm tmData;
+        ss >> get_time(&tmData, format.c_str());
+        if (ss.fail()) {
+            result = Value(ValueType::Null);
+        }
+        else {
+            result = Value(Datetime(tmData, true, true));
+        }
     }
 }
 

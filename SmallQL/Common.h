@@ -44,6 +44,11 @@ static inline bool is(const shared_ptr<From>& x) {
     return dynamic_cast<To*>(x.get()) != nullptr;
 }
 
+template<typename T>
+static inline int cmp(T x, T y) {
+    return x > y ? 1 : x < y ? -1 : 0;
+}
+
 class SQLException : public std::exception {};
 
 enum JoinType {

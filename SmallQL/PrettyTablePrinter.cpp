@@ -11,6 +11,7 @@ string stringifyValue(const Value& v) {
 	case ValueType::MinVal: return "-INF";
 	case ValueType::Integer: return to_string(v.intVal);
 	case ValueType::Double: return to_string(v.doubleVal);
+	case ValueType::Datetime: return v.datetimeVal.toString();
 	case ValueType::String: return v.stringVal;
 	}
 }
