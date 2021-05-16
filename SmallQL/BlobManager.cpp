@@ -28,6 +28,7 @@ void BlobManager::initPointers(Page headerPage) {
 
 static const int handlesPerIndex = 744;
 static const int indexesPerMasterIndex = 2047;
+static const int overflowSize = 8188;
 
 void BlobManager::loadLists(Page headerPage) {
     Page fblData = headerPage + 0x1A;
@@ -121,7 +122,7 @@ void BlobManager::flushLists() {
 }
 
 pair<uint32_t, const char*> BlobManager::readBlob(BlobId id) const {
-    if (id >= *handleCount) 
+    if (id >= *handleCount)
         return make_pair(0, nullptr);
     int indexId = id / handlesPerIndex;
     int idInIndex = id % handlesPerIndex;
@@ -134,8 +135,26 @@ pair<uint32_t, const char*> BlobManager::readBlob(BlobId id) const {
     uint32_t size = *(uint32_t*)(entry + 0x1);
     uint32_t pageId = *(uint32_t*)(entry + 0x5);
     uint16_t offset = *(uint16_t*)(entry + 0x9);
-    Page page = retrieve(pageId);
-    return make_pair(size, page + offset + 2);
+    if (size < overflowSize) {
+        Page page = retrieve(pageId);
+        return make_pair(size, page + offset + 2);
+    }
+    else {
+        uint32_t remainderSize = size % overflowSize;
+        buffer.resize(size);
+        Page page = retrieve(pageId);
+        memcpy(buffer.data(), page + offset + 2, remainderSize);
+        PageId overflowId = *(PageId*)(page + offset + 2 + remainderSize);
+        int i = 0;
+        while (true) {
+            Page overflowPage = retrieve(overflowId);
+            memcpy(buffer.data() + remainderSize + i * overflowSize, overflowPage, overflowSize);
+            overflowId = *(PageId*)(overflowPage + overflowSize);
+            if (overflowId == NULL32) break;
+            i++;
+        }
+        return make_pair(size, buffer.data());
+    }
 }
 
 bool BlobManager::writeBlob(BlobId id, const char* data, uint32_t size) {
@@ -174,8 +193,20 @@ void BlobManager::pushBackIndex(PageId indexPageId) {
 set<BlobManager::BlobData>::iterator BlobManager::findFreeBlobOfSize(uint32_t size) {
     if (freeBlobList.empty()) return freeBlobList.end();
 
-    BlobData testBlob = {size, NULL32, NULL16};
+    BlobData testBlob = {size, 0, 0};
     return freeBlobList.lower_bound(testBlob);
+}
+
+PageId BlobManager::getOverflowPage() {
+    BlobData testBlob = {overflowSize, 0, 0};
+    auto iter = freeBlobList.lower_bound(testBlob);
+    if (iter == freeBlobList.end())
+        return (*pageCount)++;
+    else {
+        PageId pageId = iter->page;
+        freeBlobList.erase(iter);
+        return pageId;
+    }
 }
 
 const int minFreeBytes = 8;
@@ -213,7 +244,14 @@ BlobId BlobManager::addBlob(const char* data, uint32_t size) {
     }
 
     *handleInfo = 1;
-    auto freeBlobIter = findFreeBlobOfSize(size);
+
+    uint32_t remainderSize = size % overflowSize;
+    uint32_t overflowPageCount = size / overflowSize;
+    uint32_t firstBlobSize = remainderSize;
+    if (overflowPageCount > 0)
+        firstBlobSize += 4;
+
+    auto freeBlobIter = findFreeBlobOfSize(firstBlobSize);
     BlobData initialBlobData;
     if (freeBlobIter == freeBlobList.end()) {
         initialBlobData.page = (*pageCount)++;
@@ -225,7 +263,7 @@ BlobId BlobManager::addBlob(const char* data, uint32_t size) {
         freeBlobList.erase(freeBlobIter);
     }
 
-    uint32_t freeBlobSize = initialBlobData.size - size;
+    uint32_t freeBlobSize = initialBlobData.size - firstBlobSize;
     if (freeBlobSize < 4 + minFreeBytes)
         freeBlobSize = 0;
 
@@ -233,7 +271,7 @@ BlobId BlobManager::addBlob(const char* data, uint32_t size) {
     activeBlobData.size = initialBlobData.size - freeBlobSize;
     activeBlobData.page = initialBlobData.page;
     activeBlobData.offset = initialBlobData.offset;
-    *(uint32_t*)(handleInfo + 0x1) = activeBlobData.size;
+    *(uint32_t*)(handleInfo + 0x1) = activeBlobData.size + overflowPageCount * overflowSize - (overflowPageCount > 0? 4 : 0);
     *(uint32_t*)(handleInfo + 0x5) = activeBlobData.page;
     *(uint16_t*)(handleInfo + 0x9) = activeBlobData.offset;
 
@@ -241,7 +279,31 @@ BlobId BlobManager::addBlob(const char* data, uint32_t size) {
     char* activeBlobStart = dataPage + activeBlobData.offset;
     *(uint16_t*)activeBlobStart = 0xFFFF;
     *(uint16_t*)(activeBlobStart + activeBlobData.size + 2) = 0xFFFF;
-    memcpy(activeBlobStart + 2, data, size);
+    memcpy(activeBlobStart + 2, data, remainderSize);
+
+    if (overflowPageCount > 0) {
+        PageId firstOverflowPageId = getOverflowPage();
+        *(PageId*)(activeBlobStart + 2 + remainderSize) = firstOverflowPageId;
+        Page firstOverflowPage = retrieve(firstOverflowPageId);
+        *(PageId*)(firstOverflowPage + overflowSize) = NULL32;
+        memcpy(firstOverflowPage, data + remainderSize, overflowSize);
+        update(firstOverflowPageId);
+
+        PageId previousOverflowPageId = firstOverflowPageId;
+        Page previousOverflowPage = firstOverflowPage;
+        for (int i = 1; i < overflowPageCount; i++) {
+            PageId overflowPageId = getOverflowPage();
+            Page overflowPage = retrieve(overflowPageId);
+            *(PageId*)(previousOverflowPage + overflowSize) = overflowPageId;
+            update(previousOverflowPageId);
+            
+            memcpy(overflowPage, data + remainderSize + i * overflowSize, overflowSize);
+            *(PageId*)(overflowPage + overflowSize) = NULL32;
+            previousOverflowPageId = overflowPageId;
+            previousOverflowPage = overflowPage;
+            update(overflowPageId);
+        }
+    }
     
     if (freeBlobSize != 0) {
         freeBlobSize -= 4;
@@ -275,6 +337,12 @@ bool BlobManager::deleteBlob(BlobId id) {
     uint32_t pageId = *(uint32_t*)(entry + 0x5);
     uint16_t offset = *(uint16_t*)(entry + 0x9);
 
+    uint32_t remainderSize = size % overflowSize;
+    uint32_t overflowPageCount = size / overflowSize;
+    uint32_t firstBlobSize = remainderSize;
+    if (overflowPageCount > 0)
+        firstBlobSize += 4;
+
     *entry = 0;
     *(uint32_t*)(entry + 0x1) = *fhlStart;
     *fhlStart = id;
@@ -283,6 +351,24 @@ bool BlobManager::deleteBlob(BlobId id) {
 
     Page dataPage = retrieve(pageId);
     char* blobData = dataPage + offset;
+
+    if (overflowPageCount > 0) {
+        PageId overflowPageId = *(PageId*)(blobData + 2 + remainderSize);
+        while (overflowPageId != NULL32) {
+            Page overflowPage = retrieve(overflowPageId);
+            PageId nextOverflowPageId = *(PageId*)(overflowPage + overflowSize);
+            *(uint16_t*)overflowPage = overflowSize;
+            *(uint16_t*)(overflowPage + overflowSize + 2) = overflowSize;
+            BlobData overflowBlob;
+            overflowBlob.page = overflowPageId;
+            overflowBlob.offset = 0;
+            overflowBlob.size = overflowSize;
+            freeBlobList.insert(overflowBlob);
+            update(overflowPageId);
+            overflowPageId = nextOverflowPageId;
+        }
+    }
+
     if (offset != 0 && *(uint16_t*)(blobData - 2) != 0xFFFF) {
         uint16_t addSize = *(uint16_t*)(blobData - 2);
         
@@ -292,24 +378,24 @@ bool BlobManager::deleteBlob(BlobId id) {
         leftBlobData.offset = offset - addSize - 4;
         freeBlobList.erase(leftBlobData);
 
-        size += addSize + 4;
+        firstBlobSize += addSize + 4;
         offset -= addSize + 4;
         blobData = dataPage + offset;
     }
-    if (offset + size + 4 < PAGE_SIZE && *(uint16_t*)(blobData + size + 4) != 0xFFFF) {
-        uint16_t addSize = *(uint16_t*)(blobData + size + 4);
+    if (offset + firstBlobSize + 4 < PAGE_SIZE && *(uint16_t*)(blobData + firstBlobSize + 4) != 0xFFFF) {
+        uint16_t addSize = *(uint16_t*)(blobData + firstBlobSize + 4);
         
         BlobData rightBlobData;
         rightBlobData.size = addSize;
         rightBlobData.page = pageId;
-        rightBlobData.offset = offset + size + 4;
+        rightBlobData.offset = offset + firstBlobSize + 4;
         freeBlobList.erase(rightBlobData);
         
-        size += addSize + 4;
+        firstBlobSize += addSize + 4;
     }
-    *(uint16_t*)blobData = size;
-    *(uint16_t*)(blobData + size + 2) = size;
-    freeBlobList.insert({ size, pageId, offset });
+    *(uint16_t*)blobData = firstBlobSize;
+    *(uint16_t*)(blobData + firstBlobSize + 2) = firstBlobSize;
+    freeBlobList.insert({ firstBlobSize, pageId, offset });
     update(pageId);
     return true;
 }

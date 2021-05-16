@@ -25,7 +25,13 @@ int main()
     sysMan.load();
     BlobManager blobManager;
 
-    while (true) {
+    string blob1(100000, 'Y');
+    blobManager.addBlob(blob1.c_str(), blob1.size());
+    //string blob2(20000, '2');
+    //blobManager.addBlob(blob2.c_str(), blob2.size());
+    //blobManager.deleteBlob(1);
+
+    /*while (true) {
         cout << "> ";
         stringstream ss;
         while (true) {
@@ -65,5 +71,5 @@ int main()
             cout << e.what() << endl;
         }
         cout << endl;
-    }
+    }*/
 }

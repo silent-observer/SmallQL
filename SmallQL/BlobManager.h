@@ -21,6 +21,8 @@ private:
     set<BlobData> freeBlobList;
     vector<PageId> indexPageList;
 
+    mutable vector<char> buffer;
+
     void initFile(Page headerPage);
     void initPointers(Page headerPage);
     void loadLists(Page headerPage);
@@ -28,6 +30,7 @@ private:
     friend bool operator<(const BlobData& l, const BlobData& r);
 
     set<BlobData>::iterator findFreeBlobOfSize(uint32_t size);
+    PageId getOverflowPage();
 public:
     BlobManager();
     ~BlobManager();
