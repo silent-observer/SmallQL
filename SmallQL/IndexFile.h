@@ -18,7 +18,7 @@ class IndexFile : public Pager {
     NodeId* fplStart;
     NodeId* rootPageId;
     char* page0Data;
-
+    
     uint16_t leafCellSize;
     uint16_t internalCellSize;
     int overflowMode;

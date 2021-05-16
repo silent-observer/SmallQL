@@ -88,6 +88,19 @@ protected:
     FixedLengthType(uint32_t size) : DataType(size) {}
 };
 
+class VariableLengthType : public DataType {
+protected:
+    VariableLengthType() : DataType(0) {}
+public:
+    virtual vector<char> encodePtr(Value val) const = 0;
+    virtual pair<uint32_t, Value> decodePtr(const char* data) const = 0;
+    Value decode(const char* data) const { return decodePtr(data).second; }
+    void encode(Value val, char* out) const { 
+        auto data = encodePtr(val);
+        memcpy(out, data.data(), data.size());
+    };
+};
+
 struct SchemaEntry {
     shared_ptr<DataType> type;
     string name;
@@ -110,22 +123,24 @@ struct Schema {
     int totalNullBits;
     int totalNullBytes;
     int size;
-    Schema() : columns(), totalNullBits(0), totalNullBytes(0), size(0) {}
+    bool hasVarLenData;
+    int varLenOffset;
+    Schema() : columns(), totalNullBits(0), totalNullBytes(0), size(0), hasVarLenData(false), varLenOffset(0) {}
     Schema(vector<SchemaEntry> columns);
     void updateData();
     inline uint32_t getSize() const {
         return size;
     };
     bool checkVal(ValueArray values) const;
-    void encode(ValueArray values, char* out) const;
-    inline vector<char> encode(ValueArray values) const {
+    vector<char> encode(ValueArray values, char* out) const;
+    inline pair<vector<char>, vector<char>> encode(ValueArray values) const {
         vector<char> result(getSize());
-        encode(values, result.data());
-        return result;
+        auto varData = encode(values, result.data());
+        return make_pair(result, varData);
     }
-    ValueArray decode(const char* data) const;
-    inline ValueArray decode(const vector<char>& data) const {
-        return decode(data.data());
+    ValueArray decode(const char* data, const char* varData) const;
+    inline ValueArray decode(const vector<char>& data, const vector<char>& varData) const {
+        return decode(data.data(), varData.data());
     }
     int compare(const ValueArray& a, const ValueArray& b) const;
     int compare(const char* a, ValueArray b) const;
@@ -140,6 +155,8 @@ struct Schema {
     Schema primaryKeySubschema() const;
     ValueArray narrow(const ValueArray& values) const;
     vector<int> getNullBitOffsets() const;
+    uint32_t decodeBlobId(const char* data) const;
+    void setBlobId(const char* data, uint32_t blobId) const;
     friend ostream& operator<<(ostream& os, const Schema& schema);
 };
 
@@ -202,6 +219,16 @@ public:
     bool checkVal(Value val) const;
     void encode(Value val, char* out) const;
     Value decode(const char* data) const;
+    void print(ostream& os) const;
+};
+
+class TextType : public VariableLengthType {
+public:
+    TextType() : VariableLengthType() {}
+
+    bool checkVal(Value val) const;
+    vector<char> encodePtr(Value val) const;
+    pair<uint32_t, Value> decodePtr(const char* data) const;
     void print(ostream& os) const;
 };
 

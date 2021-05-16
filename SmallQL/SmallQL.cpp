@@ -21,38 +21,9 @@ int main()
 {
     srand(1);
 
-    BlobManager blobManager;
-    for (int i = 0; i < 5000; i++) {
-        /*auto p = blobManager.readBlob(i);
-        if (p.second == nullptr)
-            cout << i << " -> NULL" << endl;
-        else {
-            cout << i << " -> " << string(p.second, p.second + p.first) << endl;
-        }*/
-        if (i % 100 == 0)
-            cout << i << endl;
-        for (int j = 0; j < 10; j++) {
-            string blob = to_string(i) + '_' + to_string(j) + string(rand() % 5, ' ');
-            blobManager.addBlob(blob.c_str(), blob.size());
-        }
-        blobManager.deleteBlob(rand() % ((i + 1) * 9));
-        blobManager.deleteBlob(rand() % ((i + 1) * 9));
-        blobManager.deleteBlob(rand() % ((i + 1) * 9));
-    }
-    //string blob = "This is a very big string that is so big so that it won't fit in a small space.";
-    //blobManager.addBlob(blob.c_str(), blob.size());
-    //blob = "smstr.";
-    //blobManager.addBlob(blob.c_str(), blob.size());
-    //blob = "Small string.";
-    //blobManager.addBlob(blob.c_str(), blob.size());
-    //cout << id << endl;
-    //blobManager.readBlob(0);
-    //blobManager.readBlob(1);
-    //blobManager.readBlob(2);
-    //blobManager.deleteBlob(1);
-
-    /*SystemInfoManager sysMan;
+    SystemInfoManager sysMan;
     sysMan.load();
+    BlobManager blobManager;
 
     while (true) {
         cout << "> ";
@@ -81,7 +52,7 @@ int main()
                 //cout << endl << "After optimization:" << endl << endl;
                 //print(qtree);
                 //cout << endl;
-                Executor exec(sysMan);
+                Executor exec(sysMan, blobManager);
                 exec.prepare(move(qtree));
                 auto result = exec.execute();
                 if (result.size() == 0)
@@ -94,5 +65,5 @@ int main()
             cout << e.what() << endl;
         }
         cout << endl;
-    }*/
+    }
 }

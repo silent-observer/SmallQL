@@ -327,6 +327,26 @@ void VarCharType::print(ostream& os) const {
     os << "VARCHAR(" << maxSize << ")";
 }
 
+bool TextType::checkVal(Value val) const {
+    return val.type == ValueType::String;
+}
+vector<char> TextType::encodePtr(Value val) const {
+    assert(checkVal(val));
+    vector<char> result(val.stringVal.size() + 2);
+    *(uint32_t*)result.data() = val.stringVal.size();
+    memcpy(result.data() + 4, val.stringVal.c_str(), val.stringVal.size());
+    return result;
+}
+pair<uint32_t, Value> TextType::decodePtr(const char* data) const {
+    Value result(ValueType::String);
+    uint32_t size = *(uint32_t*)data;
+    result.stringVal = string(data + 4, size);
+    return make_pair(size + 4, result);
+}
+void TextType::print(ostream& os) const {
+    os << "TEXT";
+}
+
 int Schema::compare(const char* a, ValueArray b) const {
     uint32_t offset = 0;
     for (int i = 0; i < columns.size(); i++) {
@@ -360,20 +380,31 @@ Schema::Schema(vector<SchemaEntry> columns)
 
 void Schema::updateData() {
     totalNullBits = 0;
+    hasVarLenData = false;
 
     for (int i = 0; i < this->columns.size(); i++) {
         this->columns[i].id = i;
         if (this->columns[i].canBeNull)
             this->columns[i].nullBit = totalNullBits++;
+        if (is<VariableLengthType>(this->columns[i].type)) {
+            hasVarLenData = true;
+            if (this->columns[i].isPrimary)
+                throw TypeException("Cannot have primary keys of variable size!");
+        }
     }
     totalNullBytes = (totalNullBits + 7) / 8;
 
     uint32_t offset = totalNullBytes;
     for (int i = 0; i < this->columns.size(); i++) {
+        if (is<VariableLengthType>(this->columns[i].type)) continue;
         this->columns[i].offset = offset;
         offset += this->columns[i].type->getSize();
     }
     size = offset;
+    if (hasVarLenData) {
+        varLenOffset = offset;
+        size += 4;
+    }
 }
 
 bool Schema::checkVal(ValueArray values) const {
@@ -387,11 +418,12 @@ bool Schema::checkVal(ValueArray values) const {
     }
     return true;
 }
-void Schema::encode(ValueArray values, char* out) const {
+vector<char> Schema::encode(ValueArray values, char* out) const {
+    vector<char> varData;
     assert(checkVal(values));
     memset(out, 0, totalNullBytes);
     for (int i = 0; i < columns.size(); i++) {
-        if(FixedLengthType* t = convert<FixedLengthType>(columns[i].type)) {
+        if (auto t = convert<FixedLengthType>(columns[i].type)) {
             if (values[i].type == ValueType::Null) {
                 int nullIndex = columns[i].nullBit;
                 out[nullIndex / 8] |= 1 << (nullIndex % 8);
@@ -400,12 +432,24 @@ void Schema::encode(ValueArray values, char* out) const {
                 t->encode(values[i], out + columns[i].offset);
             }
         }
+        else if (auto t = convert<VariableLengthType>(columns[i].type)){
+            if (values[i].type == ValueType::Null) {
+                int nullIndex = columns[i].nullBit;
+                out[nullIndex / 8] |= 1 << (nullIndex % 8);
+            }
+            else {
+                auto vec = t->encodePtr(values[i]);
+                varData.insert(varData.end(), vec.begin(), vec.end());
+            }
+        }
     }
+    return varData;
 }
-ValueArray Schema::decode(const char* data) const {
+ValueArray Schema::decode(const char* data, const char* varData) const {
     ValueArray result(columns.size());
+    uint32_t varDataOffset = 0;
     for (int i = 0; i < columns.size(); i++) {
-        if(FixedLengthType* t = convert<FixedLengthType>(columns[i].type)) {
+        if (auto t = convert<FixedLengthType>(columns[i].type)) {
             bool isNull = false;
             if (columns[i].canBeNull) {
                 int nullIndex = columns[i].nullBit;
@@ -418,11 +462,37 @@ ValueArray Schema::decode(const char* data) const {
                 result[i] = v;
             }
         }
+        else if (auto t = convert<VariableLengthType>(columns[i].type)) {
+            bool isNull = false;
+            if (columns[i].canBeNull) {
+                int nullIndex = columns[i].nullBit;
+                isNull = (data[nullIndex / 8] >> (nullIndex % 8)) & 1;
+            }
+            if (isNull)
+                result[i] = Value(ValueType::Null);
+            else {
+                auto p = t->decodePtr(varData + varDataOffset);
+                varDataOffset += p.first;
+                result[i] = p.second;
+            }
+        }
     }
     return result;
 }
+uint32_t Schema::decodeBlobId(const char* data) const {
+    auto ptr = data + varLenOffset;
+    return *(uint32_t*)ptr;
+}
+void Schema::setBlobId(const char* data, uint32_t blobId) const {
+    auto ptr = data + varLenOffset;
+    *(uint32_t*)ptr = blobId;
+}
+
+
 void Schema::addColumn(SchemaEntry entry) {
     columns.push_back(entry);
+    if (is<VariableLengthType>(entry.type))
+        hasVarLenData = true;
 }
 
 Schema Schema::primaryKeySubschema() const {
@@ -445,11 +515,9 @@ vector<int> Schema::getNullBitOffsets() const {
     uint32_t nullIndex = 0;
     vector<int> result(totalNullBits);
     for (int i = 0; i < columns.size(); i++) {
-        if(auto t = convert<FixedLengthType>(columns[i].type)) {
-            if (columns[i].canBeNull) {
-                result[nullIndex] = i;
-                nullIndex++;
-            }
+        if (columns[i].canBeNull) {
+            result[nullIndex] = i;
+            nullIndex++;
         }
     }
     return result;
@@ -489,6 +557,7 @@ shared_ptr<DataType> parseDataType(string str) {    string s = str;
         int val = stoi(params);
         return make_shared<VarCharType>(val);
     }
+    else if (mainName == "TEXT") return make_shared<TextType>();
     else {
         return NULL;
     }
@@ -497,8 +566,8 @@ shared_ptr<DataType> parseDataType(string str) {    string s = str;
 bool typeCheckComparable(shared_ptr<DataType> a, shared_ptr<DataType> b) {
     if (is<NullType>(a) || is<NullType>(b)) 
         return true;
-    if (is<VarCharType>(a))
-        return is<VarCharType>(b);
+    if (is<VarCharType>(a) || is<TextType>(a))
+        return is<VarCharType>(b) || is<TextType>(b);
     if (is<ByteType>(a) ||is<ShortIntType>(a) || is<IntType>(a) || is<DoubleType>(a))
         return is<ByteType>(b) ||is<ShortIntType>(b) || is<IntType>(b) || is<DoubleType>(b);
     if (is<DatetimeType>(a))
@@ -521,7 +590,7 @@ shared_ptr<DataType> typeCheckFunc(string name, vector<shared_ptr<DataType>> inp
     }
     else if (name == "CONCAT") {
         for (auto& t : inputs)
-            if (!is<VarCharType>(t))
+            if (!is<VarCharType>(t) && !is<TextType>(t))
                 throw TypeException("Invalid type in CONCAT expression");
         return make_shared<IntType>();
     }
@@ -529,7 +598,7 @@ shared_ptr<DataType> typeCheckFunc(string name, vector<shared_ptr<DataType>> inp
         if (inputs.size() == 0 || inputs.size() > 2)
             throw TypeException("TO_DATETIME supports only 1 or 2 arguments");
         for (auto& t : inputs)
-            if (!is<VarCharType>(t))
+            if (!is<VarCharType>(t) && !is<TextType>(t))
                 throw TypeException("Invalid type in TO_DATETIME expression");
         return make_shared<DatetimeType>();
     }

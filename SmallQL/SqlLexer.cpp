@@ -88,7 +88,7 @@ const static set<string> KEYWORDS_SET = {
 };
 
 const static set<string> TYPE_SET = {
-    "INT", "INTEGER", "BYTE", "TINYINT", "SMALLINT", "DOUBLE", "VARCHAR", "DATETIME"
+    "INT", "INTEGER", "BYTE", "TINYINT", "SMALLINT", "DOUBLE", "VARCHAR", "DATETIME", "TEXT"
 };
 
 const static set<string> FUNCTION_NAME_SET = {
@@ -99,7 +99,7 @@ const static set<string> AGGR_FUNCTION_NAME_SET = {
     "SUM", "MIN", "MAX", "AVG", "COUNT"
 };
 
-const regex TYPE_REGEX(R"((INTEGER|INT|BYTE|TINYINT|SMALLINT|DOUBLE|DATETIME|VARCHAR\([0-9]+\)).*)",
+const regex TYPE_REGEX(R"((INTEGER|INT|BYTE|TINYINT|SMALLINT|DOUBLE|DATETIME|VARCHAR\([0-9]+\)|TEXT).*)",
     regex_constants::ECMAScript | regex_constants::icase);
 
 void Lexer::lexWord() {

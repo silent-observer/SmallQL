@@ -3,6 +3,7 @@
 #include "SystemInfoManager.h"
 #include "DataSequence.h"
 #include "GroupDataSequence.h"
+#include "BlobManager.h"
 #include <map>
 
 using namespace std;
@@ -25,12 +26,13 @@ public:
     vector<unique_ptr<DataSequence>> sequences;
     vector<unique_ptr<GroupDataSequence>> groupSequences;
     SystemInfoManager& sysMan;
+    BlobManager& blobManager;
     QueryType queryType;
     uint16_t tableId;
     IntermediateType resultType;
     string message;
 
-    Executor(SystemInfoManager& sysMan): sysMan(sysMan) {}
+    Executor(SystemInfoManager& sysMan, BlobManager& blobManager): sysMan(sysMan), blobManager(blobManager) {}
     void prepare(QTablePtr tree);
     vector<ValueArray> execute();
 };

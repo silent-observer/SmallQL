@@ -3,8 +3,9 @@
 #include "ComputerVisitor.h"
 #include <algorithm>
 
-TableFullScanDS::TableFullScanDS(const Schema& schema, DataFile& data)
+TableFullScanDS::TableFullScanDS(const Schema& schema, DataFile& data, BlobManager& blobManager)
     : data(data)
+    , blobManager(blobManager)
     , iter(makeConst(data).begin())
     , recordData(make_unique<ValueArray>())
     , schema(schema)
@@ -14,14 +15,27 @@ TableFullScanDS::TableFullScanDS(const Schema& schema, DataFile& data)
 void TableFullScanDS::reset() {
     iter = makeConst(data).begin();
     if (iter != makeConst(data).end()) {
-        *recordData = schema.decode(*iter);
+        const char* varData = nullptr;
+        if (schema.hasVarLenData) {
+            BlobId blobId = schema.decodeBlobId(*iter);
+            auto p = blobManager.readBlob(blobId);
+            varData = p.second;
+        }
+        *recordData = schema.decode(*iter, varData);
         record.recordId = iter.getRecordId();
     }
 }
 void TableFullScanDS::advance() {
     if (iter == makeConst(data).end()) return;
     iter++;
-    *recordData = schema.decode(*iter);
+
+    const char* varData = nullptr;
+    if (schema.hasVarLenData) {
+        BlobId blobId = schema.decodeBlobId(*iter);
+        auto p = blobManager.readBlob(blobId);
+        varData = p.second;
+    }
+    *recordData = schema.decode(*iter, varData);
     record.recordId = iter.getRecordId();
 }
 bool TableFullScanDS::hasEnded() const {
@@ -29,10 +43,11 @@ bool TableFullScanDS::hasEnded() const {
 }
 
 
-TableIndexScanDS::TableIndexScanDS(const Schema& schema, DataFile& data, IndexFile& index,
+TableIndexScanDS::TableIndexScanDS(const Schema& schema, DataFile& data, IndexFile& index, BlobManager& blobManager,
         ValueArray from, ValueArray to, bool incFrom, bool incTo)
     : data(data)
     , index(index)
+    , blobManager(blobManager)
     , iter(index.end())
     , from(from)
     , to(to)
@@ -48,12 +63,28 @@ void TableIndexScanDS::reset() {
     if (iter == index.end()) return;
 
     record.recordId = *iter;
-    *recordData = schema.decode(data.readRecord(record.recordId));
+    const char* r = data.readRecord(record.recordId);
+    const char* varData = nullptr;
+    if (schema.hasVarLenData) {
+        BlobId blobId = schema.decodeBlobId(r);
+        auto p = blobManager.readBlob(blobId);
+        varData = p.second;
+    }
+
+    *recordData = schema.decode(r, varData);
     if (!incFrom) {
         while (index.getKeySchema().compare(from, *recordData) == 0) {
             iter++;
             record.recordId = *iter;
-            *recordData = schema.decode(data.readRecord(record.recordId));
+
+            r = data.readRecord(record.recordId);
+            varData = nullptr;
+            if (schema.hasVarLenData) {
+                BlobId blobId = schema.decodeBlobId(r);
+                auto p = blobManager.readBlob(blobId);
+                varData = p.second;
+            }
+            *recordData = schema.decode(r, varData);
             if (iter == index.end()) return;
         }
     }
@@ -62,7 +93,14 @@ void TableIndexScanDS::advance() {
     if (iter == index.end()) return;
     iter++;
     record.recordId = *iter;
-    *recordData = schema.decode(data.readRecord(record.recordId));
+    const char* r = data.readRecord(record.recordId);
+    const char* varData = nullptr;
+    if (schema.hasVarLenData) {
+        BlobId blobId = schema.decodeBlobId(r);
+        auto p = blobManager.readBlob(blobId);
+        varData = p.second;
+    }
+    *recordData = schema.decode(r, varData);
     int cmpVal = index.getKeySchema().compare(to, *recordData);
     if (cmpVal < 0 || !incTo && cmpVal == 0)
         iter = index.end();
@@ -518,9 +556,10 @@ vector<ValueArray> selectData(DataSequence* source) {
     return result;
 }
 
-Inserter::Inserter(const SystemInfoManager& sysMan, uint16_t tableId) 
+Inserter::Inserter(const SystemInfoManager& sysMan, BlobManager& blobManager, uint16_t tableId) 
     : dataFile(sysMan, tableId)
     , schema(sysMan.getTableSchema(tableId))
+    , blobManager(blobManager)
 {
     const vector<uint16_t>& indexes = sysMan.getTableInfo(tableId).indexes;
     for (uint16_t indexId : indexes) {
@@ -530,19 +569,25 @@ Inserter::Inserter(const SystemInfoManager& sysMan, uint16_t tableId)
 }
 
 bool Inserter::insert(RecordPtr record) {
-    vector<char> encoded = schema.encode(*record.record);
-    RecordId recordId = dataFile.addRecord(encoded.data());
+    auto encoded = schema.encode(*record.record);
+    if (!encoded.second.empty()) {
+        BlobId blobId = blobManager.addBlob(encoded.second);
+        schema.setBlobId(encoded.first.data(), blobId);
+    } else if (schema.hasVarLenData)
+        schema.setBlobId(encoded.first.data(), NULL32);
+
+    RecordId recordId = dataFile.addRecord(encoded.first.data());
     ValueArray decoded = *record.record;
     for (IndexFile& index : indexFiles) {
         ValueArray keyValues = index.getKeySchema().narrow(decoded);
         auto keys = index.getKeySchema().encode(keyValues);
-        bool result = index.addKey(keys, recordId);
+        bool result = index.addKey(keys.first, recordId);
         if (!result) {
 
             for (IndexFile& index : indexFiles) {
                 ValueArray keyValues = index.getKeySchema().narrow(decoded);
                 auto keys = index.getKeySchema().encode(keyValues);
-                index.deleteKey(keys, recordId);
+                index.deleteKey(keys.first, recordId);
             }
 
             dataFile.deleteRecord(recordId);
@@ -563,8 +608,8 @@ bool Inserter::insert(DataSequence* source) {
 }
 
 
-Deleter::Deleter(const SystemInfoManager& sysMan, uint16_t tableId)
-    : sysMan(sysMan), tableId(tableId) {}
+Deleter::Deleter(const SystemInfoManager& sysMan, BlobManager& blobManager, uint16_t tableId)
+    : sysMan(sysMan), tableId(tableId), blobManager(blobManager) {}
 
 void Deleter::prepareAll(DataSequence* source) {
     source->reset();
@@ -577,6 +622,7 @@ void Deleter::prepareAll(DataSequence* source) {
 int Deleter::deleteAll() {
     DataFile dataFile(sysMan, tableId);
     vector<IndexFile> indexFiles;
+    const Schema& schema = sysMan.getTableSchema(tableId);
     const vector<uint16_t>& indexes = sysMan.getTableInfo(tableId).indexes;
     for (uint16_t indexId : indexes) {
         const Schema& keySchema = sysMan.getIndexSchema(tableId, indexId);
@@ -585,13 +631,18 @@ int Deleter::deleteAll() {
 
     int count = 0;
     for (const auto& p : data) {
+        if (schema.hasVarLenData) {
+            auto data = dataFile.readRecord(p.first);
+            BlobId blob = schema.decodeBlobId(data);
+            blobManager.deleteBlob(blob);
+        }
         bool result = dataFile.deleteRecord(p.first);
         if (result) count++;
 
         for (auto& index : indexFiles) {
             ValueArray keyValues = index.getKeySchema().narrow(p.second);
             auto keys = index.getKeySchema().encode(keyValues);
-            index.deleteKey(keys, p.first);
+            index.deleteKey(keys.first, p.first);
         }
     }
     return count;

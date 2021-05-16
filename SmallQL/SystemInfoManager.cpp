@@ -51,7 +51,7 @@ void SystemInfoManager::load() {
     };
     map<uint16_t, map<uint16_t, ColumnData>> columnData;
     for (const char* record : makeConst(tablesFile)) {
-        ValueArray decoded = tablesSchema.decode(record);
+        ValueArray decoded = tablesSchema.decode(record, nullptr);
         uint16_t tableId = decoded[0].intVal;
         string tableName = decoded[1].stringVal;
         tableNames[tableName] = tableId;
@@ -59,7 +59,7 @@ void SystemInfoManager::load() {
     }
 
     for (const char* record : makeConst(columnsFile)) {
-        ValueArray decoded = columnsSchema.decode(record);
+        ValueArray decoded = columnsSchema.decode(record, nullptr);
         uint16_t tableId = decoded[0].intVal;
         uint16_t columnId = decoded[1].intVal;
         string columnName = decoded[2].stringVal;
@@ -99,7 +99,7 @@ void SystemInfoManager::load() {
     }
 
     for (const char* record : makeConst(indexesFile)) {
-        ValueArray decoded = indexesSchema.decode(record);
+        ValueArray decoded = indexesSchema.decode(record, nullptr);
         uint16_t tableId = decoded[0].intVal;
         uint16_t indexId = decoded[1].intVal;
         uint8_t flags = decoded[2].intVal;
@@ -110,7 +110,7 @@ void SystemInfoManager::load() {
     }
 
     for (const char* record : makeConst(indexColumnsFile)) {
-        ValueArray decoded = indexColumnsSchema.decode(record);
+        ValueArray decoded = indexColumnsSchema.decode(record, nullptr);
         uint16_t tableId = decoded[0].intVal;
         uint16_t indexId = decoded[1].intVal;
         uint16_t columnId = decoded[2].intVal;
@@ -134,7 +134,7 @@ uint16_t SystemInfoManager::addTable(string name) {
     auto encoded = tablesSchema.encode({
         Value(tableId), Value(name)
     });
-    tablesFile.addRecord(encoded);
+    tablesFile.addRecord(encoded.first);
     tables[tableId] = { tableId, name, Schema() };
     tableNames[name] = tableId;
 
@@ -155,7 +155,7 @@ uint16_t SystemInfoManager::addColumn(uint16_t tableId, string name,
         Value(name), Value(type), 
         Value(flags), Value(defaultValue)
     });
-    columnsFile.addRecord(encoded);
+    columnsFile.addRecord(encoded.first);
     tables[tableId].schema.addColumn(SchemaEntry{
         parseDataType(type), name,
         0, 0, isPrimary, canBeNull
@@ -171,7 +171,7 @@ void SystemInfoManager::createPrimaryIndex(uint16_t tableId) {
     auto encoded = indexesSchema.encode({
         Value(tableId), Value(0), Value((int8_t)0x80), Value("PRIMARY")
     });
-    indexesFile.addRecord(encoded);
+    indexesFile.addRecord(encoded.first);
     
     tables[tableId].schema.updateData();
     Schema keySchema = tables[tableId].schema.primaryKeySubschema();
@@ -180,7 +180,7 @@ void SystemInfoManager::createPrimaryIndex(uint16_t tableId) {
         auto encoded = indexColumnsSchema.encode({
             Value(tableId), Value(0), Value(entry.id)
         });
-        indexColumnsFile.addRecord(encoded);
+        indexColumnsFile.addRecord(encoded.first);
     }
     indexes[make_pair(tableId, 0)] = IndexInfo{ 0, "PRIMARY", keySchema };
     indexNames[make_pair(tableId, "PRIMARY")] = 0;
@@ -198,27 +198,27 @@ void SystemInfoManager::dropTable(string name) {
     DataFile indexColumnsFile(-4, indexColumnsSchema.getSize());
 
     for (auto i = tablesFile.begin(); i != tablesFile.end(); i++) {
-        ValueArray decoded = tablesSchema.decode(*i);
+        ValueArray decoded = tablesSchema.decode(*i, nullptr);
         if (decoded[0].intVal == tableId) {
             tablesFile.deleteRecord(i.getRecordId());
             break;
         }
     }
     for (auto i = columnsFile.begin(); i != columnsFile.end(); i++) {
-        ValueArray decoded = columnsSchema.decode(*i);
+        ValueArray decoded = columnsSchema.decode(*i, nullptr);
         if (decoded[0].intVal == tableId)
             columnsFile.deleteRecord(i.getRecordId());
     }
     vector<uint16_t> indexIds;
     for (auto i = indexesFile.begin(); i != indexesFile.end(); i++) {
-        ValueArray decoded = indexesSchema.decode(*i);
+        ValueArray decoded = indexesSchema.decode(*i, nullptr);
         if (decoded[0].intVal == tableId) {
             indexIds.push_back(decoded[1].intVal);
             indexesFile.deleteRecord(i.getRecordId());
         }
     }
     for (auto i = indexColumnsFile.begin(); i != indexColumnsFile.end(); i++) {
-        ValueArray decoded = indexColumnsSchema.decode(*i);
+        ValueArray decoded = indexColumnsSchema.decode(*i, nullptr);
         if (decoded[0].intVal == tableId)
             indexColumnsFile.deleteRecord(i.getRecordId());
     }

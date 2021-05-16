@@ -3,6 +3,7 @@
 #include "DataFile.h"
 #include "IndexFile.h"
 #include "SystemInfoManager.h"
+#include "BlobManager.h"
 
 #include <iostream>
 
@@ -35,11 +36,12 @@ public:
 class TableFullScanDS : public DataSequence {
 private:
     DataFile& data;
+    BlobManager& blobManager;
     DataFile::const_iterator iter;
     const Schema& schema;
     unique_ptr<ValueArray> recordData;
 public:
-    TableFullScanDS(const Schema& schema, DataFile& data);
+    TableFullScanDS(const Schema& schema, DataFile& data, BlobManager& blobManager);
     virtual void reset();
     virtual void advance();
     virtual bool hasEnded() const;
@@ -49,13 +51,14 @@ class TableIndexScanDS : public DataSequence {
 private:
     DataFile& data;
     IndexFile& index;
+    BlobManager& blobManager;
     IndexFile::const_iterator iter;
     const Schema& schema;
     ValueArray from, to;
     bool incFrom, incTo;
     unique_ptr<ValueArray> recordData;
 public:
-    TableIndexScanDS(const Schema& schema, DataFile& data, IndexFile& index,
+    TableIndexScanDS(const Schema& schema, DataFile& data, IndexFile& index, BlobManager& blobManager,
         ValueArray from, ValueArray to, bool incFrom, bool incTo);
     virtual void reset();
     virtual void advance();
@@ -203,9 +206,10 @@ class Inserter {
 private:
     DataFile dataFile;
     const Schema& schema;
+    BlobManager& blobManager;
     vector<IndexFile> indexFiles;
 public:
-    Inserter(const SystemInfoManager& sysMan, uint16_t tableId);
+    Inserter(const SystemInfoManager& sysMan, BlobManager& blobManager, uint16_t tableId);
     bool insert(RecordPtr record);
     bool insert(DataSequence* source);
 };
@@ -214,9 +218,10 @@ class Deleter {
 private:
     vector<pair<RecordId, ValueArray>> data;
     const SystemInfoManager& sysMan;
+    BlobManager& blobManager;
     uint16_t tableId;
 public:
-    Deleter(const SystemInfoManager& sysMan, uint16_t tableId);
+    Deleter(const SystemInfoManager& sysMan, BlobManager& blobManager, uint16_t tableId);
     void prepareAll(DataSequence* source);
     int deleteAll();
 };

@@ -44,7 +44,7 @@ void Executor::prepare(QTablePtr tree) {
 
 void PreparerVisitor::visitReadTableQNode(ReadTableQNode& n) {
     DataFile& data = exec->addDataFile(n.tableId, n.tableSchema);
-    auto seq = make_unique<TableFullScanDS>(n.tableSchema, data);
+    auto seq = make_unique<TableFullScanDS>(n.tableSchema, data, exec->blobManager);
     exec->sequences.push_back(move(seq));
     lastResult = exec->sequences.size() - 1;
 }
@@ -53,7 +53,7 @@ void PreparerVisitor::visitReadTableIndexScanQNode(ReadTableIndexScanQNode& n) {
     DataFile& data = exec->addDataFile(n.tableId, n.tableSchema);
     IndexFile& index = exec->addIndexFile(n.tableId, n.indexId, n.keySchema);
     auto seq = make_unique<TableIndexScanDS>(
-        n.tableSchema, data, index,
+        n.tableSchema, data, index, exec->blobManager,
         n.from, n.to, n.incFrom, n.incTo);
     exec->sequences.push_back(move(seq));
     lastResult = exec->sequences.size() - 1;
@@ -183,13 +183,13 @@ vector<ValueArray> Executor::execute() {
         message = "<empty set>";
         return selectData(sequences.back().get());
     case QueryType::Insert: {
-        Inserter inserter(sysMan, tableId);
+        Inserter inserter(sysMan, blobManager, tableId);
         inserter.insert(sequences.back().get());
         message = "Successfully inserted rows!";
         return vector<ValueArray>();
     }
     case QueryType::Delete: {
-        Deleter deleter(sysMan, tableId);
+        Deleter deleter(sysMan, blobManager, tableId);
         deleter.prepareAll(sequences.back().get());
 
         dataFiles.clear();
