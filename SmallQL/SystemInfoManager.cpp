@@ -38,10 +38,10 @@ const Schema indexColumnsSchema(
 );
 
 void SystemInfoManager::load() {
-    DataFile tablesFile(-1, tablesSchema.getSize());
-    DataFile columnsFile(-2, columnsSchema.getSize());
-    DataFile indexesFile(-3, indexesSchema.getSize());
-    DataFile indexColumnsFile(-4, indexColumnsSchema.getSize());
+    DataFile tablesFile(pageManager, -1, tablesSchema.getSize());
+    DataFile columnsFile(pageManager, -2, columnsSchema.getSize());
+    DataFile indexesFile(pageManager, -3, indexesSchema.getSize());
+    DataFile indexColumnsFile(pageManager, -4, indexColumnsSchema.getSize());
 
     struct ColumnData {
         string columnName;
@@ -127,7 +127,7 @@ uint16_t SystemInfoManager::addTable(string name) {
     makeUpper(name);
     if (tableNames.count(name) != 0)
         throw InternalTablesException("Table " + name + " already exists!");
-    DataFile tablesFile(-1, tablesSchema.getSize());
+    DataFile tablesFile(pageManager, -1, tablesSchema.getSize());
     uint16_t tableId = 0;
     while (tables.count(tableId) != 0) tableId++;
 
@@ -145,7 +145,7 @@ uint16_t SystemInfoManager::addColumn(uint16_t tableId, string name,
     string type, bool isPrimary, bool canBeNull, string defaultValue) {
     makeUpper(name);
 
-    DataFile columnsFile(-2, columnsSchema.getSize());
+    DataFile columnsFile(pageManager, -2, columnsSchema.getSize());
     uint16_t columnId = tables[tableId].schema.columns.size();
     if (isPrimary) canBeNull = false;
     uint8_t flags = (int)isPrimary | ((int)canBeNull << 1);
@@ -165,8 +165,8 @@ uint16_t SystemInfoManager::addColumn(uint16_t tableId, string name,
 }
 
 void SystemInfoManager::createPrimaryIndex(uint16_t tableId) {
-    DataFile indexesFile(-3, indexesSchema.getSize());
-    DataFile indexColumnsFile(-4, indexColumnsSchema.getSize());
+    DataFile indexesFile(pageManager, -3, indexesSchema.getSize());
+    DataFile indexColumnsFile(pageManager, -4, indexColumnsSchema.getSize());
 
     auto encoded = indexesSchema.encode({
         Value(tableId), Value(0), Value((int8_t)0x80), Value("PRIMARY")
@@ -186,16 +186,16 @@ void SystemInfoManager::createPrimaryIndex(uint16_t tableId) {
     indexNames[make_pair(tableId, "PRIMARY")] = 0;
     tables[tableId].indexes.push_back(0);
 
-    DataFile table(*this, tableId);
-    IndexFile index(tableId, 0, tables[tableId].primaryKeys);
+    DataFile table(pageManager, *this, tableId);
+    IndexFile index(pageManager, tableId, 0, tables[tableId].primaryKeys);
 }
 
 void SystemInfoManager::dropTable(string name) {
     uint16_t tableId = getTableId(name);
-    DataFile tablesFile(-1, tablesSchema.getSize());
-    DataFile columnsFile(-2, columnsSchema.getSize());
-    DataFile indexesFile(-3, indexesSchema.getSize());
-    DataFile indexColumnsFile(-4, indexColumnsSchema.getSize());
+    DataFile tablesFile(pageManager, -1, tablesSchema.getSize());
+    DataFile columnsFile(pageManager, -2, columnsSchema.getSize());
+    DataFile indexesFile(pageManager, -3, indexesSchema.getSize());
+    DataFile indexColumnsFile(pageManager, -4, indexColumnsSchema.getSize());
 
     for (auto i = tablesFile.begin(); i != tablesFile.end(); i++) {
         ValueArray decoded = tablesSchema.decode(*i, nullptr);

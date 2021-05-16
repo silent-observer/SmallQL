@@ -3,13 +3,13 @@
 
 DataFile& Executor::addDataFile(uint16_t id, const Schema& schema) {
     if (dataFiles.count(id) == 0)
-        dataFiles.emplace(id, make_unique<DataFile>(id, schema.size));
+        dataFiles.emplace(id, make_unique<DataFile>(pageManager, id, schema.size));
     return *dataFiles[id];
 }
 IndexFile& Executor::addIndexFile(uint16_t tableId, uint16_t indexId, const Schema& keySchema) {
     pair<uint16_t, uint16_t> p = make_pair(tableId, indexId);
     if (indexFiles.count(p) == 0)
-        indexFiles.emplace(p, make_unique<IndexFile>(tableId, indexId, keySchema));
+        indexFiles.emplace(p, make_unique<IndexFile>(pageManager, tableId, indexId, keySchema));
     return *indexFiles[p];
 }
 
@@ -183,13 +183,13 @@ vector<ValueArray> Executor::execute() {
         message = "<empty set>";
         return selectData(sequences.back().get());
     case QueryType::Insert: {
-        Inserter inserter(sysMan, blobManager, tableId);
+        Inserter inserter(pageManager, sysMan, blobManager, tableId);
         inserter.insert(sequences.back().get());
         message = "Successfully inserted rows!";
         return vector<ValueArray>();
     }
     case QueryType::Delete: {
-        Deleter deleter(sysMan, blobManager, tableId);
+        Deleter deleter(pageManager, sysMan, blobManager, tableId);
         deleter.prepareAll(sequences.back().get());
 
         dataFiles.clear();

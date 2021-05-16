@@ -556,15 +556,15 @@ vector<ValueArray> selectData(DataSequence* source) {
     return result;
 }
 
-Inserter::Inserter(const SystemInfoManager& sysMan, BlobManager& blobManager, uint16_t tableId) 
-    : dataFile(sysMan, tableId)
+Inserter::Inserter(PageManager& pageManager, const SystemInfoManager& sysMan, BlobManager& blobManager, uint16_t tableId) 
+    : dataFile(pageManager, sysMan, tableId)
     , schema(sysMan.getTableSchema(tableId))
     , blobManager(blobManager)
 {
     const vector<uint16_t>& indexes = sysMan.getTableInfo(tableId).indexes;
     for (uint16_t indexId : indexes) {
         const Schema& keySchema = sysMan.getIndexSchema(tableId, indexId);
-        indexFiles.emplace_back(tableId, indexId, keySchema);
+        indexFiles.emplace_back(pageManager, tableId, indexId, keySchema);
     }
 }
 
@@ -608,8 +608,8 @@ bool Inserter::insert(DataSequence* source) {
 }
 
 
-Deleter::Deleter(const SystemInfoManager& sysMan, BlobManager& blobManager, uint16_t tableId)
-    : sysMan(sysMan), tableId(tableId), blobManager(blobManager) {}
+Deleter::Deleter(PageManager& pageManager, const SystemInfoManager& sysMan, BlobManager& blobManager, uint16_t tableId)
+    : sysMan(sysMan), tableId(tableId), blobManager(blobManager), pageManager(pageManager) {}
 
 void Deleter::prepareAll(DataSequence* source) {
     source->reset();
@@ -620,13 +620,13 @@ void Deleter::prepareAll(DataSequence* source) {
 }
 
 int Deleter::deleteAll() {
-    DataFile dataFile(sysMan, tableId);
+    DataFile dataFile(pageManager, sysMan, tableId);
     vector<IndexFile> indexFiles;
     const Schema& schema = sysMan.getTableSchema(tableId);
     const vector<uint16_t>& indexes = sysMan.getTableInfo(tableId).indexes;
     for (uint16_t indexId : indexes) {
         const Schema& keySchema = sysMan.getIndexSchema(tableId, indexId);
-        indexFiles.emplace_back(tableId, indexId, keySchema);
+        indexFiles.emplace_back(pageManager, tableId, indexId, keySchema);
     }
 
     int count = 0;

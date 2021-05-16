@@ -11,7 +11,7 @@ bool operator<(const BlobManager::BlobData& l, const BlobManager::BlobData& r) {
     return false;
 }
 
-BlobManager::BlobManager() : Pager("blob.dbb") {
+BlobManager::BlobManager(PageManager& pageManager) : Pager(pageManager, 0xFFFF0000) {
     Page headerPage = retrieve(0);
     if (memcmp(headerPage, "SmDB", 4) != 0) {
         initFile(headerPage);

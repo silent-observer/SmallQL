@@ -21,17 +21,18 @@ int main()
 {
     srand(1);
 
-    SystemInfoManager sysMan;
+    PageManager pageManager("Big.dbf", "meta.dbm");
+    SystemInfoManager sysMan(pageManager);
     sysMan.load();
-    BlobManager blobManager;
+    BlobManager blobManager(pageManager);
 
-    string blob1(100000, 'Y');
-    blobManager.addBlob(blob1.c_str(), blob1.size());
+    //string blob1(100000, 'Y');
+    //blobManager.addBlob(blob1.c_str(), blob1.size());
     //string blob2(20000, '2');
     //blobManager.addBlob(blob2.c_str(), blob2.size());
     //blobManager.deleteBlob(1);
 
-    /*while (true) {
+    while (true) {
         cout << "> ";
         stringstream ss;
         while (true) {
@@ -58,7 +59,7 @@ int main()
                 //cout << endl << "After optimization:" << endl << endl;
                 //print(qtree);
                 //cout << endl;
-                Executor exec(sysMan, blobManager);
+                Executor exec(pageManager, sysMan, blobManager);
                 exec.prepare(move(qtree));
                 auto result = exec.execute();
                 if (result.size() == 0)
@@ -71,5 +72,5 @@ int main()
             cout << e.what() << endl;
         }
         cout << endl;
-    }*/
+    }
 }

@@ -1,5 +1,5 @@
 #pragma once
-#include "Pager.h"
+#include "PageManager.h"
 #include "Common.h"
 #include "SystemInfoManager.h"
 #include <cstdint>
@@ -22,10 +22,10 @@ class DataFile : public Pager {
     void initPointers(Page headerPage);
     char* readRecordInternal(RecordId id) const;
 public:
-    DataFile(int tableId);
-    DataFile(int tableId, uint32_t recordSize);
-    DataFile(const SystemInfoManager& sysMan, int tableId);
-    DataFile(const SystemInfoManager& sysMan, string tableName);
+    DataFile(PageManager& pageManager, int tableId);
+    DataFile(PageManager& pageManager, int tableId, uint32_t recordSize);
+    DataFile(PageManager& pageManager, const SystemInfoManager& sysMan, int tableId);
+    DataFile(PageManager& pageManager, const SystemInfoManager& sysMan, string tableName);
     const char* readRecord(RecordId id) const;
     inline vector<char> readRecordVector(RecordId id) const {
         const char* record = readRecord(id);

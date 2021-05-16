@@ -332,7 +332,7 @@ bool TextType::checkVal(Value val) const {
 }
 vector<char> TextType::encodePtr(Value val) const {
     assert(checkVal(val));
-    vector<char> result(val.stringVal.size() + 2);
+    vector<char> result(val.stringVal.size() + 4);
     *(uint32_t*)result.data() = val.stringVal.size();
     memcpy(result.data() + 4, val.stringVal.c_str(), val.stringVal.size());
     return result;

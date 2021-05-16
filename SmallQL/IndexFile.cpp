@@ -3,9 +3,10 @@
 #include "DataType.h"
 #include <iostream>
 
+#define INDEXFILE_ID(tableId, indexId) ((tableId & 0xFFFF) << 16 | (indexId & 0xFFFF))
 
-IndexFile::IndexFile(int tableId, int indexId, const Schema& keySchema)
-    : Pager(to_string(tableId) + "_" + to_string(indexId) + ".dbi")
+IndexFile::IndexFile(PageManager& pageManager, int tableId, int indexId, const Schema& keySchema)
+    : Pager(pageManager, INDEXFILE_ID(tableId, indexId))
     , keySchema(keySchema) {
     Page headerPage = retrieve(0);
     if (memcmp(headerPage, "SmDI", 4) != 0) {
@@ -14,8 +15,8 @@ IndexFile::IndexFile(int tableId, int indexId, const Schema& keySchema)
     initPointers(headerPage);
 }
 
-IndexFile::IndexFile(const SystemInfoManager& sysMan, string tableName, string indexName)
-    : IndexFile(sysMan.getTableId(tableName), 
+IndexFile::IndexFile(PageManager& pageManager, const SystemInfoManager& sysMan, string tableName, string indexName)
+    : IndexFile(pageManager, sysMan.getTableId(tableName), 
         sysMan.getIndexId(tableName, indexName), 
         sysMan.getIndexSchema(tableName, indexName)) {}
 

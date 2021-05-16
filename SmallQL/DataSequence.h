@@ -209,7 +209,7 @@ private:
     BlobManager& blobManager;
     vector<IndexFile> indexFiles;
 public:
-    Inserter(const SystemInfoManager& sysMan, BlobManager& blobManager, uint16_t tableId);
+    Inserter(PageManager& pageManager, const SystemInfoManager& sysMan, BlobManager& blobManager, uint16_t tableId);
     bool insert(RecordPtr record);
     bool insert(DataSequence* source);
 };
@@ -217,11 +217,12 @@ public:
 class Deleter {
 private:
     vector<pair<RecordId, ValueArray>> data;
+    PageManager& pageManager;
     const SystemInfoManager& sysMan;
     BlobManager& blobManager;
     uint16_t tableId;
 public:
-    Deleter(const SystemInfoManager& sysMan, BlobManager& blobManager, uint16_t tableId);
+    Deleter(PageManager& pageManager, const SystemInfoManager& sysMan, BlobManager& blobManager, uint16_t tableId);
     void prepareAll(DataSequence* source);
     int deleteAll();
 };

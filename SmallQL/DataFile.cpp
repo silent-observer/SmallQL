@@ -4,8 +4,10 @@
 
 const uint64_t FRL_MASK = 0x00FFFFFFFFFFFFFFul;
 
-DataFile::DataFile(int tableId)
-    : Pager(to_string(tableId) + ".dbd") {
+#define DATAFILE_ID(tableId) ((tableId & 0xFFFF) << 16 | 0xFFFF)
+
+DataFile::DataFile(PageManager& pageManager, int tableId)
+    : Pager(pageManager, DATAFILE_ID(tableId)) {
     Page headerPage = retrieve(0);
     if (memcmp(headerPage, "SmDD", 4) != 0) {
         cout << "ERROR! Table not found" << endl;
@@ -14,8 +16,8 @@ DataFile::DataFile(int tableId)
     initPointers(headerPage);
 }
 
-DataFile::DataFile(int tableId, uint32_t recordSize)
-    : Pager(to_string(tableId) + ".dbd") {
+DataFile::DataFile(PageManager& pageManager, int tableId, uint32_t recordSize)
+    : Pager(pageManager, DATAFILE_ID(tableId)) {
     Page headerPage = retrieve(0);
     if (memcmp(headerPage, "SmDD", 4) != 0) {
         initFile(tableId, recordSize, headerPage);
@@ -23,12 +25,12 @@ DataFile::DataFile(int tableId, uint32_t recordSize)
     initPointers(headerPage);
 }
 
-DataFile::DataFile(const SystemInfoManager& sysMan, int tableId)
-    : DataFile(tableId, 
+DataFile::DataFile(PageManager& pageManager, const SystemInfoManager& sysMan, int tableId)
+    : DataFile(pageManager, tableId, 
         sysMan.getTableSchema(tableId).getSize()) {}
 
-DataFile::DataFile(const SystemInfoManager& sysMan, string tableName)
-    : DataFile(sysMan.getTableId(tableName), 
+DataFile::DataFile(PageManager& pageManager, const SystemInfoManager& sysMan, string tableName)
+    : DataFile(pageManager, sysMan.getTableId(tableName), 
         sysMan.getTableSchema(tableName).getSize()) {}
 
 void DataFile::initPointers(Page headerPage) {

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "DataType.h"
+#include "PageManager.h"
 #include "Common.h"
 #include <map>
 
@@ -19,12 +20,13 @@ struct IndexInfo {
 
 class SystemInfoManager {
 private:
+    PageManager& pageManager;
     map<uint16_t, TableInfo> tables;
     map<string, uint16_t> tableNames;
     map<pair<uint16_t, uint16_t>, IndexInfo> indexes;
     map<pair<uint16_t, string>, uint16_t> indexNames;
 public:
-    SystemInfoManager(): tables() {};
+    SystemInfoManager(PageManager& pageManager): tables(), pageManager(pageManager) {};
     void load();
     uint16_t addTable(string name);
     uint16_t addColumn(uint16_t tableId, string name, string type, bool isPrimary, bool canBeNull, string defaultValue="");

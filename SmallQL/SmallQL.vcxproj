@@ -151,10 +151,10 @@
     <ClCompile Include="Executor.cpp" />
     <ClCompile Include="GroupDataSequence.cpp" />
     <ClCompile Include="IndexFile.cpp" />
+    <ClCompile Include="PageManager.cpp" />
     <ClCompile Include="PrettyTablePrinter.cpp" />
     <ClCompile Include="QueryTree.cpp" />
     <ClCompile Include="TableReadOptimizer.cpp" />
-    <ClCompile Include="Pager.cpp" />
     <ClCompile Include="SmallQL.cpp" />
     <ClCompile Include="SqlAst.cpp" />
     <ClCompile Include="SqlLexer.cpp" />
@@ -175,7 +175,7 @@
     <ClInclude Include="IndexFile.h" />
     <ClInclude Include="IndexFilePrivate.h" />
     <ClInclude Include="Optimizer.h" />
-    <ClInclude Include="Pager.h" />
+    <ClInclude Include="PageManager.h" />
     <ClInclude Include="PrettyTablePrinter.h" />
     <ClInclude Include="QueryTree.h" />
     <ClInclude Include="SqlAst.h" />

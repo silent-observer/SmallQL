@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Pager.h"
+#include "PageManager.h"
 #include <vector>
 #include <set>
 
@@ -32,7 +32,7 @@ private:
     set<BlobData>::iterator findFreeBlobOfSize(uint32_t size);
     PageId getOverflowPage();
 public:
-    BlobManager();
+    BlobManager(PageManager& pageManager);
     ~BlobManager();
     void flushLists();
     pair<uint32_t, const char*> readBlob(BlobId id) const;
