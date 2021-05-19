@@ -140,57 +140,6 @@ void ProjectorDS::update() {
     record.recordId = source->get().recordId;
 }
 
-class CondCheckerVisitor : public QConditionNode::Visitor {
-private:
-    const IntermediateType& schema;
-    const ValueArray* record;
-    bool result;
-public:
-    CondCheckerVisitor(const IntermediateType& schema, const ValueArray* record)
-        : schema(schema), record(record) {}
-    inline bool getResult() const {
-        return result;
-    }
-    inline void updateRecord(const ValueArray* newRecord) {
-        record = newRecord;
-    }
-    virtual void visitAndConditionQNode(AndConditionQNode& n);
-    virtual void visitOrConditionQNode(OrConditionQNode& n);
-    virtual void visitCompareConditionQNode(CompareConditionQNode& n);
-};
-
-void CondCheckerVisitor::visitOrConditionQNode(OrConditionQNode& n) {
-    for (const auto& childCond : n.children) {
-        childCond->accept(this);
-        if (result) return;
-    }
-    result = false;
-}
-
-void CondCheckerVisitor::visitAndConditionQNode(AndConditionQNode& n) {
-    for (const auto& childCond : n.children) {
-        childCond->accept(this);
-        if (!result) return;
-    }
-    result = true;
-}
-
-void CondCheckerVisitor::visitCompareConditionQNode(CompareConditionQNode& n) {
-    auto vis = make_unique<ComputerVisitor>(schema, record);
-    n.left->accept(vis.get());
-    Value v1 = vis->getResult();
-    n.right->accept(vis.get());
-    Value v2 = vis->getResult();
-
-    int cmpResult = compareValue(v1, v2);
-    if (cmpResult < 0)
-        result = n.less;
-    else if (cmpResult > 0)
-        result = n.greater;
-    else
-        result = n.equal;
-}
-
 FuncProjectorDS::FuncProjectorDS(const IntermediateType& type,
     DataSequence* source,
     vector<unique_ptr<QScalarNode>> funcs)

@@ -177,3 +177,36 @@ void GroupComputerVisitor::visitAggrFuncQNode(AggrFuncQNode& n) {
         result = Value(count);
     }
 }
+
+
+void CondCheckerVisitor::visitOrConditionQNode(OrConditionQNode& n) {
+    for (const auto& childCond : n.children) {
+        childCond->accept(this);
+        if (result) return;
+    }
+    result = false;
+}
+
+void CondCheckerVisitor::visitAndConditionQNode(AndConditionQNode& n) {
+    for (const auto& childCond : n.children) {
+        childCond->accept(this);
+        if (!result) return;
+    }
+    result = true;
+}
+
+void CondCheckerVisitor::visitCompareConditionQNode(CompareConditionQNode& n) {
+    auto vis = make_unique<ComputerVisitor>(schema, record);
+    n.left->accept(vis.get());
+    Value v1 = vis->getResult();
+    n.right->accept(vis.get());
+    Value v2 = vis->getResult();
+
+    int cmpResult = compareValue(v1, v2);
+    if (cmpResult < 0)
+        result = n.less;
+    else if (cmpResult > 0)
+        result = n.greater;
+    else
+        result = n.equal;
+}

@@ -31,3 +31,22 @@ public:
     }
     virtual void visitAggrFuncQNode(AggrFuncQNode& n);
 };
+
+class CondCheckerVisitor : public QConditionNode::Visitor {
+private:
+    const IntermediateType& schema;
+    const ValueArray* record;
+    bool result;
+public:
+    CondCheckerVisitor(const IntermediateType& schema, const ValueArray* record)
+        : schema(schema), record(record) {}
+    inline bool getResult() const {
+        return result;
+    }
+    inline void updateRecord(const ValueArray* newRecord) {
+        record = newRecord;
+    }
+    virtual void visitAndConditionQNode(AndConditionQNode& n);
+    virtual void visitOrConditionQNode(OrConditionQNode& n);
+    virtual void visitCompareConditionQNode(CompareConditionQNode& n);
+};
