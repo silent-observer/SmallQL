@@ -51,7 +51,7 @@ int main()
             auto parsed = parser.parse();
             //cout << parsed->prettyPrint();
 
-            if (!tryDDL(parsed, sysMan)) {
+            if (!tryDDL(parsed, pageManager, sysMan)) {
                 auto qtree = parsed->algebrize(sysMan);
                 //cout << endl << "Before optimization:" << endl << endl;
                 //print(qtree);

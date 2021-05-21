@@ -20,6 +20,12 @@ unique_ptr<StatementNode> Parser::parse() {
         l.advance();
         if (l.get().isKeyword("TABLE"))
             return parseCreateTable();
+        bool uniqueKeyword = false;
+        if (l.get().isKeyword("UNIQUE")) {
+            uniqueKeyword = true;
+        }
+        if (l.get().isKeyword("INDEX"))
+            return parseCreateIndex(uniqueKeyword);
         throw ParserException("Unknown CREATE command", l.getPos());
     }
     else if (l.get().text == "DROP") {
@@ -539,6 +545,31 @@ unique_ptr<DropTableNode> Parser::parseDropTable() {
     l.advance();
     check(TokenType::Id, "Expected table name");
     result->name = l.pop().text;
+    check(TokenType::Semicolon, "Expected semicolon");
+    l.advance();
+    return result;
+}
+
+unique_ptr<CreateIndexNode> Parser::parseCreateIndex(bool isUnique) {
+    auto result = l.createPtr<CreateIndexNode>();
+    l.advance();
+    check(TokenType::Id, "Expected index name");
+    result->name = l.pop().text;
+    checkKeyword("ON", "Expected ON");
+    l.advance();
+    check(TokenType::Id, "Expected table name");
+    result->tableName = l.pop().text;
+    check(TokenType::LParen, "Expected left paren");
+    l.advance();
+    while (l.get().type == TokenType::Id) {
+        result->columns.push_back(l.pop().text);
+        if (l.get().type != TokenType::RParen) {
+            check(TokenType::Comma, "Expected comma");
+            l.advance();
+        }
+    }
+    check(TokenType::RParen, "Expected right paren");
+    l.advance();
     check(TokenType::Semicolon, "Expected semicolon");
     l.advance();
     return result;

@@ -208,3 +208,12 @@ struct DropTableNode : public StatementNode {
     virtual void prettyPrint(ostream& s, int level) const;
     virtual QTablePtr algebrize(const SystemInfoManager& sysMan) { return nullptr; };
 };
+
+struct CreateIndexNode : public StatementNode {
+    string name;
+    string tableName;
+    vector<string> columns;
+    bool isUnique;
+    virtual void prettyPrint(ostream& s, int level) const;
+    virtual QTablePtr algebrize(const SystemInfoManager& sysMan) { return nullptr; };
+};

@@ -510,7 +510,7 @@ Inserter::Inserter(PageManager& pageManager, const SystemInfoManager& sysMan, Bl
     , schema(sysMan.getTableSchema(tableId))
     , blobManager(blobManager)
 {
-    const vector<uint16_t>& indexes = sysMan.getTableInfo(tableId).indexes;
+    const auto& indexes = sysMan.getTableInfo(tableId).indexes;
     for (uint16_t indexId : indexes) {
         const auto& indexInfo = sysMan.getIndexInfo(tableId, indexId);
         indexFiles.emplace_back(pageManager, tableId, indexId, indexInfo.schema, indexInfo.isUnique);
@@ -573,7 +573,7 @@ int Deleter::deleteAll() {
     DataFile dataFile(pageManager, sysMan, tableId);
     vector<IndexFile> indexFiles;
     const Schema& schema = sysMan.getTableSchema(tableId);
-    const vector<uint16_t>& indexes = sysMan.getTableInfo(tableId).indexes;
+    const auto& indexes = sysMan.getTableInfo(tableId).indexes;
     for (uint16_t indexId : indexes) {
         const auto& indexInfo = sysMan.getIndexInfo(tableId, indexId);
         indexFiles.emplace_back(pageManager, tableId, indexId, indexInfo.schema, indexInfo.isUnique);

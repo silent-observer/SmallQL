@@ -348,25 +348,21 @@ void TextType::print(ostream& os) const {
 }
 
 int Schema::compare(const char* a, ValueArray b) const {
-    uint32_t offset = 0;
     for (int i = 0; i < columns.size(); i++) {
-        Value v1 = columns[i].type->decode(a + offset);
+        Value v1 = columns[i].type->decode(a + columns[i].offset);
         Value v2 = b[i];
         int x = compareValue(v1, v2);
         if (x != 0) return x;
-        offset += columns[i].type->getSize();
     }
     return 0;
 }
 
 int Schema::compare(const char* a, const char* b) const {
-    uint32_t offset = 0;
     for (int i = 0; i < columns.size(); i++) {
-        Value v1 = columns[i].type->decode(a + offset);
-        Value v2 = columns[i].type->decode(b + offset);
+        Value v1 = columns[i].type->decode(a + columns[i].offset);
+        Value v2 = columns[i].type->decode(b + columns[i].offset);
         int x = compareValue(v1, v2);
         if (x != 0) return x;
-        offset += columns[i].type->getSize();
     }
     return 0;
 }
@@ -375,15 +371,16 @@ int Schema::compare(const char* a, const char* b) const {
 Schema::Schema(vector<SchemaEntry> columns)
     : columns(columns)
     , totalNullBits(0) {
-    updateData();
+    updateData(false);
 }
 
-void Schema::updateData() {
+void Schema::updateData(bool preserveIds) {
     totalNullBits = 0;
     hasVarLenData = false;
 
     for (int i = 0; i < this->columns.size(); i++) {
-        this->columns[i].id = i;
+        if (!preserveIds)
+            this->columns[i].id = i;
         if (this->columns[i].canBeNull)
             this->columns[i].nullBit = totalNullBits++;
         if (is<VariableLengthType>(this->columns[i].type)) {
@@ -468,7 +465,7 @@ ValueArray Schema::decode(const char* data, const char* varData) const {
                 int nullIndex = columns[i].nullBit;
                 isNull = (data[nullIndex / 8] >> (nullIndex % 8)) & 1;
             }
-            if (isNull)
+            if (isNull || varData == nullptr)
                 result[i] = Value(ValueType::Null);
             else {
                 auto p = t->decodePtr(varData + varDataOffset);

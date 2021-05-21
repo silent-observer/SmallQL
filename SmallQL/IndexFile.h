@@ -58,6 +58,8 @@ public:
         return deleteKey(key.data(), val);
     }
 
+    bool fillFrom(const DataFile& dataFile, const Schema& tableSchema);
+
     inline uint32_t getKeySize() {
         return keySize;
     }

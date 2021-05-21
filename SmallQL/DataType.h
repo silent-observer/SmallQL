@@ -127,7 +127,7 @@ struct Schema {
     int varLenOffset;
     Schema() : columns(), totalNullBits(0), totalNullBytes(0), size(0), hasVarLenData(false), varLenOffset(0) {}
     Schema(vector<SchemaEntry> columns);
-    void updateData();
+    void updateData(bool preserveIds);
     inline uint32_t getSize() const {
         return size;
     };

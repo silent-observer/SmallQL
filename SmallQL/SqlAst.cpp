@@ -214,3 +214,11 @@ void CreateTableNode::prettyPrint(ostream& s, int level) const {
 void DropTableNode::prettyPrint(ostream& s, int level) const {
     s << indent() << "DROP TABLE " << name << endl;
 }
+
+void CreateIndexNode::prettyPrint(ostream& s, int level) const {
+    s << indent() << "CREATE INDEX " << name << " ON " << tableName << "{" << endl;
+    for (auto const& c : columns) {
+        s << indent1() << c << endl;
+    }
+    s << "}" << endl;
+}

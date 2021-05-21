@@ -10,7 +10,7 @@ struct TableInfo {
     string name;
     Schema schema;
     Schema primaryKeys;
-    vector<uint16_t> indexes;
+    set<uint16_t> indexes;
 };
 struct IndexInfo {
     uint16_t id;
@@ -33,9 +33,14 @@ public:
     uint16_t addColumn(uint16_t tableId, string name, string type, bool isPrimary, bool canBeNull, string defaultValue="");
     void dropTable(string name);
     void createPrimaryIndex(uint16_t tableId);
+    void createIndex(uint16_t tableId, string name, vector<string> columnNames, bool isUnique);
+    void dropIndex(uint16_t tableId, string name);
 
     inline bool tableExists(string name) const {
         return tableNames.count(name) > 0;
+    }
+    inline bool indexExists(uint16_t tableId, string name) const {
+        return indexNames.count(make_pair(tableId, name)) > 0;
     }
     inline uint16_t _getTableId(string name) const {
         return tableNames.at(name);
@@ -96,7 +101,7 @@ public:
     }
 };
 
-class InternalTablesException : public std::exception
+class InternalTablesException : public SQLException
 {
 private:
     string message;

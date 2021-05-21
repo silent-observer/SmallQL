@@ -141,6 +141,7 @@ private:
     unique_ptr<CreateTableNode> parseCreateTable();
     unique_ptr<DropTableNode> parseDropTable();
     unique_ptr<ColumnSpecNode> parseColumnSpec();
+    unique_ptr<CreateIndexNode> parseCreateIndex(bool isUnique);
 
     inline void check(TokenType type, string errorCause);
     inline void checkKeyword(string keyword, string errorCause);

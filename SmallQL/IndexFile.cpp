@@ -196,6 +196,18 @@ void IndexFile::fullConsistencyCheck(NodeId id) {
 #endif
 }
 
+bool IndexFile::fillFrom(const DataFile& dataFile, const Schema& tableSchema) {
+    for (auto iter = dataFile.begin(); iter != dataFile.end(); iter++) {
+        auto decoded = tableSchema.decode(*iter, nullptr);
+        auto keys = keySchema.narrow(decoded);
+        auto keysEncoded = keySchema.encode(keys).first;
+        bool result = addKey(keysEncoded, iter.getRecordId());
+        if (!result)
+            return false;
+    }
+    return true;
+}
+
 void IndexFile::CustomIterator::updateValue() {
     if (ptrStack.size() == 0) return;
     NodeId nodeId = ptrStack.back().first;

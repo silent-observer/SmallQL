@@ -107,7 +107,7 @@ void SystemInfoManager::load() {
         bool isUnique = flags & 0x1;
         indexNames[make_pair(tableId, indexName)] = indexId;
         indexes[make_pair(tableId, indexId)] = IndexInfo{indexId, indexName, Schema(), isUnique};
-        tables[tableId].indexes.push_back(indexId);
+        tables[tableId].indexes.insert(indexId);
     }
 
     for (const char* record : makeConst(indexColumnsFile)) {
@@ -120,7 +120,7 @@ void SystemInfoManager::load() {
     }
 
     for (auto& index : indexes) {
-        index.second.schema.updateData();
+        index.second.schema.updateData(true);
     }
 }
 
@@ -174,7 +174,7 @@ void SystemInfoManager::createPrimaryIndex(uint16_t tableId) {
     });
     indexesFile.addRecord(encoded.first);
     
-    tables[tableId].schema.updateData();
+    tables[tableId].schema.updateData(false);
     Schema keySchema = tables[tableId].schema.primaryKeySubschema();
     tables[tableId].primaryKeys = keySchema;
     for (const auto& entry : keySchema.columns) {
@@ -185,7 +185,7 @@ void SystemInfoManager::createPrimaryIndex(uint16_t tableId) {
     }
     indexes[make_pair(tableId, 0)] = IndexInfo{ 0, "PRIMARY", keySchema, true};
     indexNames[make_pair(tableId, "PRIMARY")] = 0;
-    tables[tableId].indexes.push_back(0);
+    tables[tableId].indexes.insert(0);
 
     DataFile table(pageManager, *this, tableId);
     IndexFile index(pageManager, tableId, 0, tables[tableId].primaryKeys, true);
@@ -226,11 +226,70 @@ void SystemInfoManager::dropTable(string name) {
 
     tableNames.erase(name);
     tables.erase(tableId);
-    remove((to_string(tableId) + ".dbd").c_str());
-    for (uint16_t indexId : indexIds) {
-        string indexName = indexes.at(make_pair(tableId, indexId)).name;
-        indexNames.erase(make_pair(tableId, indexName));
-        indexes.erase(make_pair(tableId, indexId));
-        remove((to_string(tableId) + "_" + to_string(indexId) + ".dbi").c_str());
+}
+
+void SystemInfoManager::createIndex(uint16_t tableId, string name, vector<string> columnNames, bool isUnique) {
+    const Schema& tableSchema = tables[tableId].schema;
+    Schema keySchema;
+    for (string column : columnNames) {
+        makeUpper(column);
+        bool found = false;
+        for (int i = 0; i < tableSchema.columns.size(); i++) {
+            if (tableSchema.columns[i].name == column) {
+                SchemaEntry entry = tableSchema.columns[i];
+                keySchema.addColumn(entry);
+                found = true;
+                break;
+            }
+        }
+        if (!found)
+            throw InternalTablesException("There is no " + column + " column in table " + tables[tableId].name + "!");
     }
+    keySchema.updateData(true);
+
+    DataFile indexesFile(pageManager, -3, indexesSchema.getSize());
+    DataFile indexColumnsFile(pageManager, -4, indexColumnsSchema.getSize());
+
+    int8_t flags = isUnique ? 0x01 : 0x00;
+    
+    uint16_t indexId = 0;
+    while (tables[tableId].indexes.count(indexId) > 0) indexId++;
+    auto encoded = indexesSchema.encode({
+        Value(tableId), Value(indexId), Value(flags), Value(name)
+    });
+    indexesFile.addRecord(encoded.first);
+    
+    for (const auto& entry : keySchema.columns) {
+        auto encoded = indexColumnsSchema.encode({
+            Value(tableId), Value(indexId), Value(entry.id)
+        });
+        indexColumnsFile.addRecord(encoded.first);
+    }
+    indexes[make_pair(tableId, indexId)] = IndexInfo{ indexId, name, keySchema, isUnique};
+    indexNames[make_pair(tableId, name)] = indexId;
+    tables[tableId].indexes.insert(indexId);
+    IndexFile index(pageManager, tableId, indexId, keySchema, isUnique);
+}
+
+void SystemInfoManager::dropIndex(uint16_t tableId, string name) {
+    uint16_t indexId = indexNames.at(make_pair(tableId, name));
+
+    DataFile indexesFile(pageManager, -3, indexesSchema.getSize());
+    DataFile indexColumnsFile(pageManager, -4, indexColumnsSchema.getSize());
+
+    vector<uint16_t> indexIds;
+    for (auto i = indexesFile.begin(); i != indexesFile.end(); i++) {
+        ValueArray decoded = indexesSchema.decode(*i, nullptr);
+        if (decoded[0].intVal == tableId && decoded[1].intVal == indexId)
+            indexesFile.deleteRecord(i.getRecordId());
+    }
+    for (auto i = indexColumnsFile.begin(); i != indexColumnsFile.end(); i++) {
+        ValueArray decoded = indexColumnsSchema.decode(*i, nullptr);
+        if (decoded[0].intVal == tableId && decoded[1].intVal == indexId)
+            indexColumnsFile.deleteRecord(i.getRecordId());
+    }
+
+    indexNames.erase(make_pair(tableId, name));
+    indexes.erase(make_pair(tableId, indexId));
+    tables[tableId].indexes.erase(indexId);
 }
