@@ -127,7 +127,8 @@ private:
     void indexifyAnd(AndConditionQNode& n) {
         map<int, pair<int, bool>> indexifyable;
         uint16_t indexId = plan.at(&n).indexId;
-        const Schema& indexSchema = sysMan.getIndexSchema(tableId, indexId);
+        const auto& indexInfo = sysMan.getIndexInfo(tableId, indexId);
+        const Schema& indexSchema = indexInfo.schema;
         int currentFieldIndex = 0;
         while (currentFieldIndex < indexSchema.columns.size()) {
             bool shouldMoveIndex = false;
@@ -182,6 +183,7 @@ private:
         indexRead->incTo = incTo;
         indexRead->tableSchema = sysMan.getTableSchema(tableId);
         indexRead->type = IntermediateType(indexRead->tableSchema, sysMan.getTableInfo(tableId).name);
+        indexRead->isUnique = indexInfo.isUnique;
 
         if (indexifyable.size() != n.children.size()) {
             auto filter = make_unique<FilterQNode>();

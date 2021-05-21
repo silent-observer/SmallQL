@@ -5,9 +5,10 @@
 
 #define INDEXFILE_ID(tableId, indexId) ((tableId & 0xFFFF) << 16 | (indexId & 0xFFFF))
 
-IndexFile::IndexFile(PageManager& pageManager, int tableId, int indexId, const Schema& keySchema)
+IndexFile::IndexFile(PageManager& pageManager, int tableId, int indexId, const Schema& keySchema, bool isUnique)
     : Pager(pageManager, INDEXFILE_ID(tableId, indexId))
-    , keySchema(keySchema) {
+    , keySchema(keySchema)
+    , isUnique(isUnique) {
     Page headerPage = retrieve(0);
     if (memcmp(headerPage, "SmDI", 4) != 0) {
         initFile(tableId, indexId, keySchema.getSize(), headerPage);
@@ -18,7 +19,8 @@ IndexFile::IndexFile(PageManager& pageManager, int tableId, int indexId, const S
 IndexFile::IndexFile(PageManager& pageManager, const SystemInfoManager& sysMan, string tableName, string indexName)
     : IndexFile(pageManager, sysMan.getTableId(tableName), 
         sysMan.getIndexId(tableName, indexName), 
-        sysMan.getIndexSchema(tableName, indexName)) {}
+        sysMan.getIndexSchema(tableName, indexName),
+        sysMan.getIndexInfo(tableName, indexName).isUnique) {}
 
 void IndexFile::initPointers(Page headerPage) {
     keySize = *(uint16_t*)(headerPage + 0x0A);
@@ -123,7 +125,7 @@ bool IndexFile::addKey(const char* key, RecordId val) {
             InternalNode n(*this, currentId, keySize);
             n.consistencyCheck();
             n.internalConsistencyCheck();
-            pair<bool, SlotId> p = n.binarySearch(key, val);
+            pair<bool, SlotId> p = isUnique? n.binarySearch(key) : n.binarySearch(key, val);
             if (p.first) return false;
             if (p.second == n.cellCount())
                 currentId = n.rightPtr();
@@ -133,7 +135,7 @@ bool IndexFile::addKey(const char* key, RecordId val) {
         else { // Leaf
             LeafNode n(*this, currentId, keySize);
             n.consistencyCheck();
-            pair<bool, SlotId> p = n.binarySearch(key, val);
+            pair<bool, SlotId> p = isUnique? n.binarySearch(key) : n.binarySearch(key, val);
             if (p.first) return false;
             n.insertIntoNode(key, val);
             return true;

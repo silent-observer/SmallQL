@@ -104,8 +104,9 @@ void SystemInfoManager::load() {
         uint16_t indexId = decoded[1].intVal;
         uint8_t flags = decoded[2].intVal;
         string indexName = decoded[3].stringVal;
+        bool isUnique = flags & 0x1;
         indexNames[make_pair(tableId, indexName)] = indexId;
-        indexes[make_pair(tableId, indexId)] = IndexInfo{indexId, indexName, Schema()};
+        indexes[make_pair(tableId, indexId)] = IndexInfo{indexId, indexName, Schema(), isUnique};
         tables[tableId].indexes.push_back(indexId);
     }
 
@@ -169,7 +170,7 @@ void SystemInfoManager::createPrimaryIndex(uint16_t tableId) {
     DataFile indexColumnsFile(pageManager, -4, indexColumnsSchema.getSize());
 
     auto encoded = indexesSchema.encode({
-        Value(tableId), Value(0), Value((int8_t)0x80), Value("PRIMARY")
+        Value(tableId), Value(0), Value((int8_t)0x01), Value("PRIMARY")
     });
     indexesFile.addRecord(encoded.first);
     
@@ -182,12 +183,12 @@ void SystemInfoManager::createPrimaryIndex(uint16_t tableId) {
         });
         indexColumnsFile.addRecord(encoded.first);
     }
-    indexes[make_pair(tableId, 0)] = IndexInfo{ 0, "PRIMARY", keySchema };
+    indexes[make_pair(tableId, 0)] = IndexInfo{ 0, "PRIMARY", keySchema, true};
     indexNames[make_pair(tableId, "PRIMARY")] = 0;
     tables[tableId].indexes.push_back(0);
 
     DataFile table(pageManager, *this, tableId);
-    IndexFile index(pageManager, tableId, 0, tables[tableId].primaryKeys);
+    IndexFile index(pageManager, tableId, 0, tables[tableId].primaryKeys, true);
 }
 
 void SystemInfoManager::dropTable(string name) {

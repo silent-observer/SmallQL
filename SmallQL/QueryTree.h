@@ -108,6 +108,7 @@ struct ReadTableIndexScanQNode : public QTableNode {
     Schema keySchema;
     ValueArray from, to;
     bool incFrom, incTo;
+    bool isUnique;
     ReadTableIndexScanQNode() {}
     virtual void accept(Visitor* v) {
         v->visitReadTableIndexScanQNode(*this);

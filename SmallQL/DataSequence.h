@@ -211,7 +211,7 @@ private:
 public:
     Inserter(PageManager& pageManager, const SystemInfoManager& sysMan, BlobManager& blobManager, uint16_t tableId);
     bool insert(RecordPtr record);
-    bool insert(DataSequence* source);
+    int insert(DataSequence* source);
 };
 
 class Deleter {

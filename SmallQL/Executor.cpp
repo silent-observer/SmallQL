@@ -6,10 +6,10 @@ DataFile& Executor::addDataFile(uint16_t id, const Schema& schema) {
         dataFiles.emplace(id, make_unique<DataFile>(pageManager, id, schema.size));
     return *dataFiles[id];
 }
-IndexFile& Executor::addIndexFile(uint16_t tableId, uint16_t indexId, const Schema& keySchema) {
+IndexFile& Executor::addIndexFile(uint16_t tableId, uint16_t indexId, const Schema& keySchema, bool isUnique) {
     pair<uint16_t, uint16_t> p = make_pair(tableId, indexId);
     if (indexFiles.count(p) == 0)
-        indexFiles.emplace(p, make_unique<IndexFile>(pageManager, tableId, indexId, keySchema));
+        indexFiles.emplace(p, make_unique<IndexFile>(pageManager, tableId, indexId, keySchema, isUnique));
     return *indexFiles[p];
 }
 
@@ -52,7 +52,7 @@ void PreparerVisitor::visitReadTableQNode(ReadTableQNode& n) {
 
 void PreparerVisitor::visitReadTableIndexScanQNode(ReadTableIndexScanQNode& n) {
     DataFile& data = exec->addDataFile(n.tableId, n.tableSchema);
-    IndexFile& index = exec->addIndexFile(n.tableId, n.indexId, n.keySchema);
+    IndexFile& index = exec->addIndexFile(n.tableId, n.indexId, n.keySchema, n.isUnique);
     auto seq = make_unique<TableIndexScanDS>(
         n.tableSchema, data, index, exec->blobManager,
         n.from, n.to, n.incFrom, n.incTo);
@@ -189,8 +189,8 @@ vector<ValueArray> Executor::execute() {
         return selectData(sequences.back().get());
     case QueryType::Insert: {
         Inserter inserter(pageManager, sysMan, blobManager, tableId);
-        inserter.insert(sequences.back().get());
-        message = "Successfully inserted rows!";
+        int count = inserter.insert(sequences.back().get());
+        message = "Successfully inserted " + to_string(count) + " rows!";
         return vector<ValueArray>();
     }
     case QueryType::Delete: {

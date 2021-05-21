@@ -16,6 +16,7 @@ struct IndexInfo {
     uint16_t id;
     string name;
     Schema schema;
+    bool isUnique;
 };
 
 class SystemInfoManager {
@@ -64,6 +65,21 @@ public:
         makeUpper(tableName);
         makeUpper(indexName);
         return _getIndexId(tableName, indexName);
+    }
+    inline const IndexInfo& getIndexInfo(uint16_t tableId, uint16_t indexId) const {
+        return indexes.at(make_pair(tableId, indexId));
+    }
+    inline const IndexInfo& getIndexInfo(uint16_t tableId, string indexName) const {
+        makeUpper(indexName);
+        uint16_t indexId = indexNames.at(make_pair(tableId, indexName));
+        return indexes.at(make_pair(tableId, indexId));
+    }
+    inline const IndexInfo& getIndexInfo(string tableName, string indexName) const {
+        makeUpper(tableName);
+        makeUpper(indexName);
+        uint16_t tableId = tableNames.at(tableName);
+        uint16_t indexId = indexNames.at(make_pair(tableId, indexName));
+        return indexes.at(make_pair(tableId, indexId));
     }
     inline const Schema& _getIndexSchema(string tableName, string indexName = "PRIMARY") const {
         uint16_t tableId = tableNames.at(tableName);

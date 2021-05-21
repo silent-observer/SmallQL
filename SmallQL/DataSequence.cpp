@@ -512,8 +512,8 @@ Inserter::Inserter(PageManager& pageManager, const SystemInfoManager& sysMan, Bl
 {
     const vector<uint16_t>& indexes = sysMan.getTableInfo(tableId).indexes;
     for (uint16_t indexId : indexes) {
-        const Schema& keySchema = sysMan.getIndexSchema(tableId, indexId);
-        indexFiles.emplace_back(pageManager, tableId, indexId, keySchema);
+        const auto& indexInfo = sysMan.getIndexInfo(tableId, indexId);
+        indexFiles.emplace_back(pageManager, tableId, indexId, indexInfo.schema, indexInfo.isUnique);
     }
 }
 
@@ -546,14 +546,15 @@ bool Inserter::insert(RecordPtr record) {
     return true;
 }
 
-bool Inserter::insert(DataSequence* source) {
+int Inserter::insert(DataSequence* source) {
+    int count = 0;
     source->reset();
     while (!source->hasEnded()) {
         bool result = insert(source->get());
-        if (!result) return false;
+        if (result) count++;
         source->advance();
     }
-    return true;
+    return count;
 }
 
 
@@ -574,8 +575,8 @@ int Deleter::deleteAll() {
     const Schema& schema = sysMan.getTableSchema(tableId);
     const vector<uint16_t>& indexes = sysMan.getTableInfo(tableId).indexes;
     for (uint16_t indexId : indexes) {
-        const Schema& keySchema = sysMan.getIndexSchema(tableId, indexId);
-        indexFiles.emplace_back(pageManager, tableId, indexId, keySchema);
+        const auto& indexInfo = sysMan.getIndexInfo(tableId, indexId);
+        indexFiles.emplace_back(pageManager, tableId, indexId, indexInfo.schema, indexInfo.isUnique);
     }
 
     int count = 0;

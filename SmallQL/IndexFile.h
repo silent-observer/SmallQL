@@ -32,8 +32,9 @@ class IndexFile : public Pager {
 public:
     uint16_t cellsPerLeafPage;
     uint16_t cellsPerInternalPage;
+    bool isUnique;
 
-    IndexFile(PageManager& pageManager, int tableId, int indexId, const Schema& keySchema);
+    IndexFile(PageManager& pageManager, int tableId, int indexId, const Schema& keySchema, bool isUnique);
     IndexFile(PageManager& pageManager, const SystemInfoManager& sysMan, string tableName, string indexName = "primary");
     NodeId allocateFreePage();
     void deallocatePage(NodeId id);
