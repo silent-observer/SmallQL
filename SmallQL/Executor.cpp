@@ -34,6 +34,7 @@ public:
     virtual void visitInserterNode(InserterNode& n);
     virtual void visitDeleterNode(DeleterNode& n);
     virtual void visitConstDataNode(ConstDataNode& n);
+    virtual void visitExprDataNode(ExprDataNode& n);
 };
 
 void Executor::prepare(QTablePtr tree) {
@@ -174,6 +175,10 @@ void PreparerVisitor::visitConstDataNode(ConstDataNode& n) {
     auto seq = make_unique<ConstTableDS>(n.type, n.data);
     exec->sequences.push_back(move(seq));
     lastResult = exec->sequences.size() - 1;
+}
+
+void PreparerVisitor::visitExprDataNode(ExprDataNode& n) {
+    throw new SemanticException("Non-constant data node");
 }
 
 vector<ValueArray> Executor::execute() {

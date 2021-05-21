@@ -245,6 +245,19 @@ public:
             cout << indent() << v << endl;
         level--;
     }
+    virtual void visitExprDataNode(ExprDataNode& n) {
+        cout << indent() << "ExprData" << endl;
+        level++;
+        for (auto& r : n.data) {
+            cout << indent() << "[";
+            for (auto& v : r) {
+                v->accept(scalarPrinter);
+                cout << " ";
+            }
+            cout << "]" << endl;
+        }
+        level--;
+    }
 };
 
 void print(QTablePtr& n) {

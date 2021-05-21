@@ -36,6 +36,11 @@ public:
         auto vis = make_unique<CondOptimizerVisitor>();
         n.cond->accept(vis.get());
     }
+    virtual void visitJoinQNode(JoinQNode& n) {
+        RecursiveVisitor::visitJoinQNode(n);
+        auto vis = make_unique<CondOptimizerVisitor>();
+        n.on->accept(vis.get());
+    }
 };
 
 void optimizeConditions(QTablePtr& tree) {

@@ -161,7 +161,7 @@ unique_ptr<InsertValuesNode> Parser::parseInsertValues() {
         do {
             if (!isFirst)
                 l.advance();
-            result->data.back().push_back(parseValue());
+            result->data.back().push_back(parseExpr());
             isFirst = false;
         } while (l.get().type == TokenType::Comma);
         check(TokenType::RParen, "Expected right parenthesis");

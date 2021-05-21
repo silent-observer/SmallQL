@@ -187,8 +187,11 @@ void CompareConditionNode::prettyPrint(ostream& s, int level) const
 void InsertValuesNode::prettyPrint(ostream& s, int level) const
 {
     s << indent() << "VALUES {" << endl;
-    for (auto const& v : data) {
-        s << indent1() << v << endl;
+    for (auto const& r : data) {
+        s << indent1() << "[";
+        for (auto const& v : r)
+            s << v << " ";
+        s << "]" << endl;
     }
     s << indent() << "}" << endl;
 }

@@ -46,6 +46,7 @@ struct DegroupifierQNode;
 struct SelectorNode;
 struct InserterNode;
 struct DeleterNode;
+struct ExprDataNode;
 struct ConstDataNode;
 struct ColumnQNode;
 struct AsteriskQNode;
@@ -73,6 +74,7 @@ public:
     virtual void visitSelectorNode(SelectorNode& n) = 0;
     virtual void visitInserterNode(InserterNode& n) = 0;
     virtual void visitDeleterNode(DeleterNode& n) = 0;
+    virtual void visitExprDataNode(ExprDataNode& n) = 0;
     virtual void visitConstDataNode(ConstDataNode& n) = 0;
 };
 class QScalarNode::Visitor {
@@ -240,7 +242,14 @@ struct DeleterNode : public QTableNode {
     }
 };
 
-// Todo: functions in const data nodes
+struct ExprDataNode : public QTableNode {
+    vector<vector<QScalarPtr>> data;
+    ExprDataNode() {}
+    virtual void accept(Visitor* v) {
+        v->visitExprDataNode(*this);
+    }
+};
+
 struct ConstDataNode : public QTableNode {
     vector<ValueArray> data;
     ConstDataNode() {}
@@ -375,17 +384,28 @@ public:
         qPtr = oldQPtr;
     }
     virtual void visitConstDataNode(ConstDataNode& n) {}
+    virtual void visitExprDataNode(ExprDataNode& n) {}
 };
 class QScalarNode::RecursiveVisitor : public QScalarNode::Visitor {
+protected:
+    QScalarPtr* qPtr;
 public:
     virtual void visitColumnQNode(ColumnQNode& n) {};
     virtual void visitConstScalarQNode(ConstScalarQNode& n) {};
+    virtual void visitAsteriskQNode(AsteriskQNode& n) {};
     virtual void visitFuncQNode(FuncQNode& n) {
-        for (auto& child : n.children)
+        auto oldQPtr = qPtr;
+        for (auto& child : n.children) {
+            qPtr = &child;
             child->accept(this);
+        }
+        qPtr = oldQPtr;
     };
     virtual void visitAggrFuncQNode(AggrFuncQNode& n) {
+        auto oldQPtr = qPtr;
+        qPtr = &n.child;
         n.child->accept(this);
+        qPtr = oldQPtr;
     };
 };
 class QConditionNode::RecursiveVisitor : public QConditionNode::Visitor {

@@ -434,9 +434,17 @@ QScalarPtr AggrFuncExpr::algebrizeWithContext(
 
 QTablePtr InsertValuesNode::algebrizeWithContext(
         const SystemInfoManager& sysMan, const IntermediateType& type) const {
-    auto result = make_unique<ConstDataNode>();
+    auto result = make_unique<ExprDataNode>();
     result->type = type;
-    result->data = data;
+    for (auto& r : data) {
+        result->data.emplace_back();
+        for (auto& e : r) {
+            auto v = e->algebrizeWithContext(sysMan, type, type);
+            if (!v->type.isConst)
+                throw TypeException("Cannot have non-constant values in VALUES clause");
+            result->data.back().push_back(move(v));
+        }
+    }
     return result;
 }
 

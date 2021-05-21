@@ -143,6 +143,7 @@
     <ClCompile Include="BlobManager.cpp" />
     <ClCompile Include="ComputerVisitor.cpp" />
     <ClCompile Include="ConditionOptimizer.cpp" />
+    <ClCompile Include="ConstantOptimizer.cpp" />
     <ClCompile Include="DataFile.cpp" />
     <ClCompile Include="DataSequence.cpp" />
     <ClCompile Include="DataType.cpp" />

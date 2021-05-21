@@ -132,7 +132,7 @@ struct AggrFuncExpr : public ExprNode {
 };
 
 struct InsertValuesNode : public InsertDataNode {
-    vector<ValueArray> data;
+    vector<vector<unique_ptr<ExprNode>>> data;
     virtual void prettyPrint(ostream& s, int level) const;
     virtual QTablePtr algebrize(const SystemInfoManager& sysMan) {
         return NULL;

@@ -91,7 +91,7 @@ void ComputerVisitor::visitFuncQNode(FuncQNode& n) {
         n.children.back()->accept(this);
         if (result.type == ValueType::Null) return;
         stringstream ss(result.stringVal);
-        tm tmData;
+        tm tmData = {0, 0, 0, 1, 0, 0, 0, 0, 0};
         ss >> get_time(&tmData, format.c_str());
         if (ss.fail()) {
             result = Value(ValueType::Null);
