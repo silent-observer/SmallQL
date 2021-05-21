@@ -340,6 +340,5 @@ ASALocalRun/
 healthchecksdb
 
 # Database files
-*.dbd
-*.dbi
-*.dbb
+*.dbf
+*.dbm
