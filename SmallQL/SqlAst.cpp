@@ -222,3 +222,7 @@ void CreateIndexNode::prettyPrint(ostream& s, int level) const {
     }
     s << "}" << endl;
 }
+
+void DropIndexNode::prettyPrint(ostream& s, int level) const {
+    s << indent() << "DROP INDEX " << name << " ON " << tableName << endl;
+}

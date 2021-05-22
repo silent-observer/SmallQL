@@ -49,6 +49,21 @@ static void executeCreateIndex(const CreateIndexNode* n, PageManager& pageManage
     }
 }
 
+static void executeDropIndex(const DropIndexNode* n, SystemInfoManager& sysMan) {
+    if (!sysMan.tableExists(n->tableName)) {
+        cout << "Table " << n->tableName << " doesn't exist!" << endl;
+        return;
+    }
+    uint16_t tableId = sysMan.getTableId(n->tableName);
+    if (!sysMan.indexExists(tableId, n->name)) {
+        cout << "Index " << n->name << " on table " << n->tableName << " doesn't exist!" << endl;
+        return;
+    }
+    
+    sysMan.dropIndex(tableId, n->name);
+    cout << "Index " << n->name << " successfully dropped!" << endl;
+}
+
 bool tryDDL(const unique_ptr<StatementNode>& n, PageManager& pageManager, SystemInfoManager& sysMan) {
     if (auto crTab = convert<CreateTableNode>(n)) {
         executeCreateTable(crTab, sysMan);
@@ -60,6 +75,10 @@ bool tryDDL(const unique_ptr<StatementNode>& n, PageManager& pageManager, System
     }
     if (auto crInd = convert<CreateIndexNode>(n)) {
         executeCreateIndex(crInd, pageManager, sysMan);
+        return true;
+    }
+    if (auto drInd = convert<DropIndexNode>(n)) {
+        executeDropIndex(drInd, sysMan);
         return true;
     }
     return false;

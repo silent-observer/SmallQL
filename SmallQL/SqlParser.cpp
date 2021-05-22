@@ -33,6 +33,8 @@ unique_ptr<StatementNode> Parser::parse() {
         l.advance();
         if (l.get().isKeyword("TABLE"))
             return parseDropTable();
+        if (l.get().isKeyword("INDEX"))
+            return parseDropIndex();
         throw ParserException("Unknown CREATE command", l.getPos());
     }
     else
@@ -572,6 +574,20 @@ unique_ptr<CreateIndexNode> Parser::parseCreateIndex(bool isUnique) {
     }
     check(TokenType::RParen, "Expected right paren");
     l.advance();
+    check(TokenType::Semicolon, "Expected semicolon");
+    l.advance();
+    return result;
+}
+
+unique_ptr<DropIndexNode> Parser::parseDropIndex() {
+    auto result = l.createPtr<DropIndexNode>();
+    l.advance();
+    check(TokenType::Id, "Expected index name");
+    result->name = l.pop().text;
+    checkKeyword("ON", "Expected ON");
+    l.advance();
+    check(TokenType::Id, "Expected table name");
+    result->tableName = l.pop().text;
     check(TokenType::Semicolon, "Expected semicolon");
     l.advance();
     return result;

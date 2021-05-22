@@ -217,3 +217,10 @@ struct CreateIndexNode : public StatementNode {
     virtual void prettyPrint(ostream& s, int level) const;
     virtual QTablePtr algebrize(const SystemInfoManager& sysMan) { return nullptr; };
 };
+
+struct DropIndexNode : public StatementNode {
+    string name;
+    string tableName;
+    virtual void prettyPrint(ostream& s, int level) const;
+    virtual QTablePtr algebrize(const SystemInfoManager& sysMan) { return nullptr; };
+};
