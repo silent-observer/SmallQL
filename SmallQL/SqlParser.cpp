@@ -553,6 +553,7 @@ unique_ptr<DropTableNode> Parser::parseDropTable() {
 
 unique_ptr<CreateIndexNode> Parser::parseCreateIndex(bool isUnique) {
     auto result = l.createPtr<CreateIndexNode>();
+    result->isUnique = isUnique;
     l.advance();
     check(TokenType::Id, "Expected index name");
     result->name = l.pop().text;

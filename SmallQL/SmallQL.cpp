@@ -36,7 +36,7 @@ int main()
 
     while (true) {
         cout << "> ";
-        packaged_task<string()> readerTask([]() {
+        auto textFuture = async(launch::async, []() {
             stringstream ss;
             while (true) {
                 string s;
@@ -48,10 +48,8 @@ int main()
             cout << endl;
             return ss.str();
         });
-        auto textFuture = readerTask.get_future();
-        readerTask();
 
-        while (!textFuture.valid()) {
+        while (textFuture.wait_for(chrono::seconds(0)) != future_status::ready) {
             bool flushed = pageManager.flushOne();
             if (!flushed) {
                 pageManager.flushMetadata();
