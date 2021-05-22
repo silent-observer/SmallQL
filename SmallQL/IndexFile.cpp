@@ -22,6 +22,10 @@ IndexFile::IndexFile(PageManager& pageManager, const SystemInfoManager& sysMan, 
         sysMan.getIndexSchema(tableName, indexName),
         sysMan.getIndexInfo(tableName, indexName).isUnique) {}
 
+void IndexFile::deleteFile(PageManager& pageManager, int tableId, int indexId) {
+    pageManager.deleteFile(INDEXFILE_ID(tableId, indexId));
+}
+
 void IndexFile::initPointers(Page headerPage) {
     keySize = *(uint16_t*)(headerPage + 0x0A);
     totalPageCount = (uint32_t*)(headerPage + 0x10);

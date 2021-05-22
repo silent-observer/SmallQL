@@ -26,6 +26,8 @@ public:
     DataFile(PageManager& pageManager, int tableId, uint32_t recordSize);
     DataFile(PageManager& pageManager, const SystemInfoManager& sysMan, int tableId);
     DataFile(PageManager& pageManager, const SystemInfoManager& sysMan, string tableName);
+    static void deleteFile(PageManager& pageManager, int tableId);
+
     const char* readRecord(RecordId id) const;
     inline vector<char> readRecordVector(RecordId id) const {
         const char* record = readRecord(id);

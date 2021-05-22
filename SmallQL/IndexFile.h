@@ -36,6 +36,8 @@ public:
 
     IndexFile(PageManager& pageManager, int tableId, int indexId, const Schema& keySchema, bool isUnique);
     IndexFile(PageManager& pageManager, const SystemInfoManager& sysMan, string tableName, string indexName = "primary");
+    static void deleteFile(PageManager& pageManager, int tableId, int indexId);
+
     NodeId allocateFreePage();
     void deallocatePage(NodeId id);
     void updateParent(NodeId id, NodeId parent);

@@ -226,6 +226,11 @@ void SystemInfoManager::dropTable(string name) {
 
     tableNames.erase(name);
     tables.erase(tableId);
+
+    DataFile::deleteFile(pageManager, tableId);
+    for (auto indexId : indexIds) {
+        IndexFile::deleteFile(pageManager, tableId, indexId);
+    }
 }
 
 void SystemInfoManager::createIndex(uint16_t tableId, string name, vector<string> columnNames, bool isUnique) {
@@ -288,6 +293,8 @@ void SystemInfoManager::dropIndex(uint16_t tableId, string name) {
         if (decoded[0].intVal == tableId && decoded[1].intVal == indexId)
             indexColumnsFile.deleteRecord(i.getRecordId());
     }
+
+    IndexFile::deleteFile(pageManager, tableId, indexId);
 
     indexNames.erase(make_pair(tableId, name));
     indexes.erase(make_pair(tableId, indexId));

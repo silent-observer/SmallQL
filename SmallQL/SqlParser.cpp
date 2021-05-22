@@ -22,6 +22,7 @@ unique_ptr<StatementNode> Parser::parse() {
             return parseCreateTable();
         bool uniqueKeyword = false;
         if (l.get().isKeyword("UNIQUE")) {
+            l.advance();
             uniqueKeyword = true;
         }
         if (l.get().isKeyword("INDEX"))

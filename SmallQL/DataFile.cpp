@@ -33,6 +33,10 @@ DataFile::DataFile(PageManager& pageManager, const SystemInfoManager& sysMan, st
     : DataFile(pageManager, sysMan.getTableId(tableName), 
         sysMan.getTableSchema(tableName).getSize()) {}
 
+void DataFile::deleteFile(PageManager& pageManager, int tableId) {
+    pageManager.deleteFile(DATAFILE_ID(tableId));
+}
+
 void DataFile::initPointers(Page headerPage) {
     recordSize = *(uint32_t*)(headerPage + 0x08);
     assert(recordSize > 0);

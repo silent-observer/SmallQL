@@ -2,8 +2,10 @@
 #include <fstream>
 #include <iostream>
 
+static const VirtualFileID DELETED_FILE_ID = 0xFFFFFFF0;
+
 PageManager::PageManager(string filename, string metaFilename)
-    : f(nullptr), pageCount(0), metaFilename(metaFilename) {
+    : f(nullptr), pageCount(0), metaFilename(metaFilename), metadataUpdated(false) {
     fstream file(metaFilename, ios::binary | ios::out | ios::app);
     file.close();
     file.open(metaFilename, ios::binary | ios::in | ios::ate);
@@ -25,13 +27,19 @@ PageManager::PageManager(string filename, string metaFilename)
 
         for (int i = 0; i < pageCount; i++) {
             VirtualFileID id = buffer[i + 2];
-            if (metadata.count(id) == 0) {
+            if (id == DELETED_FILE_ID) {
+                deletedPages.insert(i);
+            }
+            else if (metadata.count(id) == 0) {
                 metadata.emplace(id, PageMap(1, i));
             }
             else {
                 metadata.at(id).push_back(i);
             }
         }
+    }
+    else {
+        metadataUpdated = false;
     }
 
 
@@ -52,12 +60,23 @@ PageManager::~PageManager() {
     fclose(f);
 }
 
+PageId PageManager::getFreePage(bool hasMinPage, PageId minPage) const {
+    if (deletedPages.size() == 0) return pageCount++;
+    auto iter = hasMinPage? deletedPages.upper_bound(minPage) : deletedPages.begin();
+    PageId p = *iter;
+    deletedPages.erase(iter);
+    return p;
+}
+
 Page PageManager::retrieve(VirtualFileID fileId, PageId id) const {
-    if (metadata.count(fileId) == 0)
+    if (metadata.count(fileId) == 0) {
         metadata.emplace(fileId, PageMap());
+    }
     auto& pageMap = metadata.at(fileId);
     while (pageMap.size() <= id) {
-        pageMap.push_back(pageCount++);
+        PageId minPage = pageMap.empty() ? 0 : pageMap.back();
+        pageMap.push_back(getFreePage(!pageMap.empty(), minPage));
+        metadataUpdated = true;
     }
     PageId trueId = pageMap[id];
 
@@ -115,9 +134,10 @@ bool PageManager::flushOne() {
 }
 
 void PageManager::flushMetadata() {
+    if (!metadataUpdated) return;
+
     fstream file(metaFilename, ios::binary | ios::in | ios::out | ios::ate);
     streamsize size = file.tellg();
-    uint32_t oldPageCount = 0;
     if (size < 2) {
         file.seekp(0, ios::beg);
         uint32_t val = 0x4D446D53;
@@ -125,18 +145,29 @@ void PageManager::flushMetadata() {
         file.write((const char*)&pageCount, 4);
     }
     else {
-        file.seekg(4, ios::beg);
-        file.read((char*)&oldPageCount, 4);
         file.seekp(4, ios::beg);
         file.write((const char*)&pageCount, 4);
     }
-    if (oldPageCount == pageCount) return;
-    file.seekp(8 + 4 * oldPageCount, ios::beg);
-    vector<uint32_t> buffer(pageCount - oldPageCount);
+    vector<uint32_t> buffer(pageCount);
     for (const auto& m : metadata) {
         for (PageId id : m.second)
-            if (id >= oldPageCount)
-                buffer[id - oldPageCount] = m.first;
+                buffer[id] = m.first;
     }
+    for (PageId id : deletedPages)
+            buffer[id] = DELETED_FILE_ID;
+    file.seekp(8, ios::beg);
     file.write((const char*)buffer.data(), 4 * buffer.size());
+    metadataUpdated = false;
+}
+
+void PageManager::deleteFile(VirtualFileID fileId) {
+    auto& pageMap = metadata.at(fileId);
+    for (int i = 0; i < pageMap.size(); i++) {
+        Page p = retrieve(fileId, i);
+        memset(p, 0, PAGE_SIZE);
+        update(fileId, i);
+        deletedPages.insert(pageMap[i]);
+    }
+    metadata.erase(fileId);
+    metadataUpdated = true;
 }
