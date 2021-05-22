@@ -16,6 +16,8 @@
 
 #include <set>
 #include <ctime>
+#include <thread>
+#include <future>
 
 int main()
 {
@@ -34,16 +36,30 @@ int main()
 
     while (true) {
         cout << "> ";
-        stringstream ss;
-        while (true) {
-            string s;
-            getline(cin, s);
-            ss << s << " ";
-            if (!s.empty() && s.back() == ';') break;
-            cout << ". ";
+        packaged_task<string()> readerTask([]() {
+            stringstream ss;
+            while (true) {
+                string s;
+                getline(cin, s);
+                ss << s << " ";
+                if (!s.empty() && s.back() == ';') break;
+                cout << ". ";
+            }
+            cout << endl;
+            return ss.str();
+        });
+        auto textFuture = readerTask.get_future();
+        readerTask();
+
+        while (!textFuture.valid()) {
+            bool flushed = pageManager.flushOne();
+            if (!flushed) {
+                pageManager.flushMetadata();
+                break;
+            }
         }
-        cout << endl;
-        string text = ss.str();
+
+        string text = textFuture.get();
         if (text.substr(0, 4) == "exit" || text.substr(0, 4) == "EXIT")
             break;
         try {
