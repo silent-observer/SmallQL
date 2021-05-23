@@ -22,11 +22,12 @@ struct IndexInfo {
 class SystemInfoManager {
 private:
     PageManager& pageManager;
+public:
     map<uint16_t, TableInfo> tables;
     map<string, uint16_t> tableNames;
     map<pair<uint16_t, uint16_t>, IndexInfo> indexes;
     map<pair<uint16_t, string>, uint16_t> indexNames;
-public:
+
     SystemInfoManager(PageManager& pageManager): tables(), pageManager(pageManager) {};
     void load();
     uint16_t addTable(string name);

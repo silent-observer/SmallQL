@@ -143,6 +143,7 @@ private:
     unique_ptr<ColumnSpecNode> parseColumnSpec();
     unique_ptr<CreateIndexNode> parseCreateIndex(bool isUnique);
     unique_ptr<DropIndexNode> parseDropIndex();
+    unique_ptr<ShowNode> parseShow();
 
     inline void check(TokenType type, string errorCause);
     inline void checkKeyword(string keyword, string errorCause);

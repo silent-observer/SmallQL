@@ -224,3 +224,10 @@ struct DropIndexNode : public StatementNode {
     virtual void prettyPrint(ostream& s, int level) const;
     virtual QTablePtr algebrize(const SystemInfoManager& sysMan) { return nullptr; };
 };
+
+struct ShowNode : public StatementNode {
+    string what;
+    string fromWhere;
+    virtual void prettyPrint(ostream& s, int level) const;
+    virtual QTablePtr algebrize(const SystemInfoManager& sysMan) { return nullptr; };
+};

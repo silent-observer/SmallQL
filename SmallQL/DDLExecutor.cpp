@@ -2,6 +2,7 @@
 #include <iostream>
 #include "DataFile.h"
 #include "IndexFile.h"
+#include "PrettyTablePrinter.h"
 
 static void executeCreateTable(const CreateTableNode* n, SystemInfoManager& sysMan) {
     if (sysMan.tableExists(n->name)) {
@@ -64,6 +65,57 @@ static void executeDropIndex(const DropIndexNode* n, SystemInfoManager& sysMan) 
     cout << "Index " << n->name << " successfully dropped!" << endl;
 }
 
+static void executeShow(const ShowNode* n, SystemInfoManager& sysMan) {
+    if (n->what == "TABLES") {
+        IntermediateType type;
+        type.addEntry(IntermediateTypeEntry("Table name", "", make_shared<TextType>(), false, false, false));
+        vector<ValueArray> data;
+        for (auto& table : sysMan.tables) {
+            data.push_back({Value(table.second.name)});
+        }
+        cout << prettyPrintTable(data, type);
+    } else if (n->what == "COLUMNS") {
+        if (!sysMan.tableExists(n->fromWhere)) {
+            cout << "Table " << n->fromWhere << " doesn't exist!" << endl;
+            return;
+        }
+
+        IntermediateType type;
+        type.addEntry(IntermediateTypeEntry("Column", "", make_shared<TextType>(), false, false, false));
+        type.addEntry(IntermediateTypeEntry("Type", "", make_shared<TextType>(), false, false, false));
+        type.addEntry(IntermediateTypeEntry("Null?", "", make_shared<TextType>(), false, false, false));
+        type.addEntry(IntermediateTypeEntry("Is primary?", "", make_shared<TextType>(), false, false, false));
+
+        vector<ValueArray> data;
+        for (auto& column : sysMan.tables.at(sysMan.getTableId(n->fromWhere)).schema.columns) {
+            string name = column.name;
+            string type = column.type->toString();
+            string null = column.canBeNull ? "YES" : "NO";
+            string primary = column.isPrimary ? "YES" : "NO";
+            data.push_back({Value(name), Value(type), Value(null), Value(primary)});
+        }
+        cout << prettyPrintTable(data, type);
+    } else if (n->what == "INDEXES") {
+        if (!sysMan.tableExists(n->fromWhere)) {
+            cout << "Table " << n->fromWhere << " doesn't exist!" << endl;
+            return;
+        }
+
+        IntermediateType type;
+        type.addEntry(IntermediateTypeEntry("Index name", "", make_shared<TextType>(), false, false, false));
+        type.addEntry(IntermediateTypeEntry("Column", "", make_shared<TextType>(), false, false, false));
+
+        vector<ValueArray> data;
+        uint16_t tableId = sysMan.getTableId(n->fromWhere);
+        for (auto& indexId : sysMan.tables[tableId].indexes) {
+            string indexName = sysMan.getIndexInfo(tableId, indexId).name;
+            for (auto& column : sysMan.getIndexInfo(tableId, indexId).schema.columns)
+                data.push_back({Value(indexName), Value(column.name)});
+        }
+        cout << prettyPrintTable(data, type);
+    }
+}
+
 bool tryDDL(const unique_ptr<StatementNode>& n, PageManager& pageManager, SystemInfoManager& sysMan) {
     if (auto crTab = convert<CreateTableNode>(n)) {
         executeCreateTable(crTab, sysMan);
@@ -79,6 +131,10 @@ bool tryDDL(const unique_ptr<StatementNode>& n, PageManager& pageManager, System
     }
     if (auto drInd = convert<DropIndexNode>(n)) {
         executeDropIndex(drInd, sysMan);
+        return true;
+    }
+    if (auto show = convert<ShowNode>(n)) {
+        executeShow(show, sysMan);
         return true;
     }
     return false;

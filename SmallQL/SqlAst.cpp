@@ -226,3 +226,10 @@ void CreateIndexNode::prettyPrint(ostream& s, int level) const {
 void DropIndexNode::prettyPrint(ostream& s, int level) const {
     s << indent() << "DROP INDEX " << name << " ON " << tableName << endl;
 }
+
+void ShowNode::prettyPrint(ostream& s, int level) const {
+    s << indent() << "SHOW " << what;
+    if (fromWhere != "")
+        s << " FROM " << fromWhere;
+    s << endl;
+}

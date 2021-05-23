@@ -37,6 +37,9 @@ unique_ptr<StatementNode> Parser::parse() {
             return parseDropIndex();
         throw ParserException("Unknown CREATE command", l.getPos());
     }
+    else if (l.get().text == "SHOW") {
+        return parseShow();
+    }
     else
         throw ParserException("Unknown command", l.getPos());
 }
@@ -588,6 +591,35 @@ unique_ptr<DropIndexNode> Parser::parseDropIndex() {
     l.advance();
     check(TokenType::Id, "Expected table name");
     result->tableName = l.pop().text;
+    check(TokenType::Semicolon, "Expected semicolon");
+    l.advance();
+    return result;
+}
+
+unique_ptr<ShowNode> Parser::parseShow() {
+    auto result = l.createPtr<ShowNode>();
+    l.advance();
+    if (l.get().isKeyword("TABLES")) {
+        result->what = "TABLES";
+        result->fromWhere = "";
+        l.advance();
+    }
+    else if (l.get().isKeyword("COLUMNS")) {
+        result->what = "COLUMNS";
+        l.advance();
+        checkKeyword("FROM", "Expected FROM");
+        l.advance();
+        check(TokenType::Id, "Expected table name");
+        result->fromWhere = l.pop().text;
+    }
+    else if (l.get().isKeyword("INDEXES")) {
+        result->what = "INDEXES";
+        l.advance();
+        checkKeyword("ON", "Expected ON");
+        l.advance();
+        check(TokenType::Id, "Expected table name");
+        result->fromWhere = l.pop().text;
+    }
     check(TokenType::Semicolon, "Expected semicolon");
     l.advance();
     return result;
