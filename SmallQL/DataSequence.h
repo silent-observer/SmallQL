@@ -226,3 +226,25 @@ public:
     void prepareAll(DataSequence* source);
     int deleteAll();
 };
+
+class Updater {
+private:
+    vector<pair<RecordId, ValueArray>> data;
+    PageManager& pageManager;
+    const SystemInfoManager& sysMan;
+    BlobManager& blobManager;
+    uint16_t tableId;
+    vector < pair < uint16_t, unique_ptr < QScalarNode >> > setData;
+    set<uint16_t> affectedIndexes;
+    bool affectsVarData;
+public:
+    Updater(PageManager& pageManager, 
+        const SystemInfoManager& sysMan, 
+        BlobManager& blobManager, 
+        uint16_t tableId,
+        vector<pair<uint16_t, unique_ptr<QScalarNode>>> setData,
+        set<uint16_t> affectedIndexes,
+        bool affectsVarData);
+    void prepareAll(DataSequence* source);
+    int updateAll();
+};

@@ -46,6 +46,7 @@ struct DegroupifierQNode;
 struct SelectorNode;
 struct InserterNode;
 struct DeleterNode;
+struct UpdaterNode;
 struct ExprDataNode;
 struct ConstDataNode;
 struct ColumnQNode;
@@ -74,6 +75,7 @@ public:
     virtual void visitSelectorNode(SelectorNode& n) = 0;
     virtual void visitInserterNode(InserterNode& n) = 0;
     virtual void visitDeleterNode(DeleterNode& n) = 0;
+    virtual void visitUpdaterNode(UpdaterNode& n) = 0;
     virtual void visitExprDataNode(ExprDataNode& n) = 0;
     virtual void visitConstDataNode(ConstDataNode& n) = 0;
 };
@@ -243,6 +245,18 @@ struct DeleterNode : public QTableNode {
     }
 };
 
+struct UpdaterNode : public QTableNode {
+    uint16_t tableId;
+    QTablePtr source;
+    vector<pair<uint16_t, QScalarPtr>> setData;
+    set<uint16_t> affectedIndexes;
+    bool affectsVarData;
+    UpdaterNode() {}
+    virtual void accept(Visitor* v) {
+        v->visitUpdaterNode(*this);
+    }
+};
+
 struct ExprDataNode : public QTableNode {
     vector<vector<QScalarPtr>> data;
     ExprDataNode() {}
@@ -379,6 +393,12 @@ public:
         qPtr = oldQPtr;
     }
     virtual void visitDeleterNode(DeleterNode& n) {
+        auto oldQPtr = qPtr;
+        qPtr = &n.source;
+        n.source->accept(this);
+        qPtr = oldQPtr;
+    }
+    virtual void visitUpdaterNode(UpdaterNode& n) {
         auto oldQPtr = qPtr;
         qPtr = &n.source;
         n.source->accept(this);

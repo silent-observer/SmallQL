@@ -597,3 +597,101 @@ int Deleter::deleteAll() {
     }
     return count;
 }
+
+Updater::Updater(PageManager& pageManager, 
+        const SystemInfoManager& sysMan, 
+        BlobManager& blobManager, 
+        uint16_t tableId,
+        vector<pair<uint16_t, QScalarPtr>> setData,
+        set<uint16_t> affectedIndexes,
+        bool affectsVarData)
+    : sysMan(sysMan)
+    , tableId(tableId)
+    , blobManager(blobManager)
+    , pageManager(pageManager)
+    , setData(move(setData))
+    , affectedIndexes (affectedIndexes)
+    , affectsVarData(affectsVarData) {}
+
+void Updater::prepareAll(DataSequence* source) {
+    source->reset();
+    while (!source->hasEnded()) {
+        data.push_back(make_pair(source->get().recordId, *source->get().record));
+        source->advance();
+    }
+}
+
+int Updater::updateAll() {
+    DataFile dataFile(pageManager, sysMan, tableId);
+    vector<IndexFile> indexFiles;
+    const Schema& schema = sysMan.getTableSchema(tableId);
+    for (uint16_t indexId : affectedIndexes) {
+        const auto& indexInfo = sysMan.getIndexInfo(tableId, indexId);
+        indexFiles.emplace_back(pageManager, tableId, indexId, indexInfo.schema, indexInfo.isUnique);
+    }
+
+    vector<ValueArray> newData;
+    for (const auto& p : data) {
+        ValueArray newArray = p.second;
+        auto visitor = make_unique<ComputerVisitor>(schema, &newArray);
+        for (const auto& setP : setData) {
+            setP.second->accept(visitor.get());
+            newArray[setP.first] = visitor->getResult();
+        }
+        newData.push_back(newArray);
+    }
+
+    int count = 0;
+    int j = 0;
+    bool result = true;
+    for (uint16_t indexId : affectedIndexes) {
+        const Schema& keySchema = sysMan.getIndexSchema(tableId, indexId);
+        for (const auto& p : data) {
+            auto oldKeys = keySchema.encode(keySchema.narrow(p.second)).first;
+            indexFiles[j].deleteKey(oldKeys, p.first);
+        }
+        int i = 0;
+        for (const auto& p : data) {
+            auto newKeys = keySchema.encode(keySchema.narrow(newData[i])).first;
+            if (!indexFiles[j].addKey(newKeys, p.first)) {
+                result = false;
+                break;
+            }
+            i++;
+        }
+        if (!result) break;
+        j++;
+    }
+
+    if (!result) {
+        for (uint16_t indexId : affectedIndexes) {
+            const Schema& keySchema = sysMan.getIndexSchema(tableId, indexId);
+            int i = 0;
+            for (const auto& p : data) {
+                auto newKeys = keySchema.encode(keySchema.narrow(newData[i])).first;
+                indexFiles[j].deleteKey(newKeys, p.first);
+                i++;
+            }
+            for (const auto& p : data) {
+                auto oldKeys = keySchema.encode(keySchema.narrow(p.second)).first;
+                indexFiles[j].addKey(oldKeys, p.first);
+            }
+            j++;
+        }
+    } 
+    else {
+        int i = 0;
+        for (const auto& p : data) {
+            auto encoded = schema.encode(newData[i]);
+            if (affectsVarData) {
+                auto data = dataFile.readRecord(p.first);
+                BlobId blob = schema.decodeBlobId(data);
+                blobManager.writeBlob(blob, encoded.second);
+            }
+            dataFile.writeRecord(p.first, encoded.first);
+            count++;
+            i++;
+        }
+    }
+    return count;
+}

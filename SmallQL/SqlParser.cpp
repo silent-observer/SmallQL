@@ -16,6 +16,9 @@ unique_ptr<StatementNode> Parser::parse() {
     else if (l.get().text == "DELETE") {
         return parseDelete();
     }
+    else if (l.get().text == "UPDATE") {
+        return parseUpdate();
+    }
     else if (l.get().text == "CREATE") {
         l.advance();
         if (l.get().isKeyword("TABLE"))
@@ -146,6 +149,32 @@ unique_ptr<DeleteStmtNode> Parser::parseDelete() {
     checkKeyword("FROM", "Expected FROM");
     l.advance();
     result->tableName = parseTableName();
+    if (l.get().isKeyword("WHERE")) {
+        l.advance();
+        result->whereCond = parseCondition();
+    }
+    check(TokenType::Semicolon, "Expected semicolon");
+    return result;
+}
+
+unique_ptr<UpdateStmtNode> Parser::parseUpdate() {
+    auto result = l.createPtr<UpdateStmtNode>();
+    l.advance();
+    result->tableName = parseTableName();
+    checkKeyword("SET", "Expected SET");
+    l.advance();
+    bool isFirst = true;
+    do {
+        if (!isFirst)
+            l.advance();
+        auto columnName = parseColumnNameExpr();
+        check(TokenType::Equals, "Expected =");
+        l.advance();
+        auto expr = parseExpr();
+        result->setData.push_back(make_pair(move(columnName), move(expr)));
+        isFirst = false;
+    } while (l.get().type == TokenType::Comma);
+    
     if (l.get().isKeyword("WHERE")) {
         l.advance();
         result->whereCond = parseCondition();

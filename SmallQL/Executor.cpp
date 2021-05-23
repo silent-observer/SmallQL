@@ -33,6 +33,7 @@ public:
     virtual void visitSelectorNode(SelectorNode& n);
     virtual void visitInserterNode(InserterNode& n);
     virtual void visitDeleterNode(DeleterNode& n);
+    virtual void visitUpdaterNode(UpdaterNode& n);
     virtual void visitConstDataNode(ConstDataNode& n);
     virtual void visitExprDataNode(ExprDataNode& n);
 };
@@ -171,6 +172,15 @@ void PreparerVisitor::visitDeleterNode(DeleterNode& n) {
     n.source->accept(this);
 }
 
+void PreparerVisitor::visitUpdaterNode(UpdaterNode& n) {
+    exec->queryType = QueryType::Update;
+    exec->tableId = n.tableId;
+    exec->setData = move(n.setData);
+    exec->affectedIndexes = n.affectedIndexes;
+    exec->affectsVarData = n.affectsVarData;
+    n.source->accept(this);
+}
+
 void PreparerVisitor::visitConstDataNode(ConstDataNode& n) {
     auto seq = make_unique<ConstTableDS>(n.type, n.data);
     exec->sequences.push_back(move(seq));
@@ -202,6 +212,17 @@ vector<ValueArray> Executor::execute() {
 
         int count = deleter.deleteAll();
         message = "Successfully deleted " + to_string(count) + " rows!";
+        return vector<ValueArray>();
+    }
+    case QueryType::Update: {
+        Updater updater(pageManager, sysMan, blobManager, tableId, move(setData), affectedIndexes, affectsVarData);
+        updater.prepareAll(sequences.back().get());
+
+        dataFiles.clear();
+        indexFiles.clear();
+
+        int count = updater.updateAll();
+        message = "Successfully updated " + to_string(count) + " rows!";
         return vector<ValueArray>();
     }
     default:

@@ -238,6 +238,17 @@ public:
         cout << indent() << "DELETE FROM " << n.tableId << endl;
         n.source->accept(this);
     }
+    virtual void visitUpdaterNode(UpdaterNode& n) {
+        cout << indent() << "UPDATE [" << n.tableId << endl;
+        n.source->accept(this);
+        cout << indent() << "] <- [" << endl;
+        for (const auto& p : n.setData) {
+            cout << indent1() << p.first << " <- ";
+            p.second->accept(scalarPrinter);
+            cout << endl;
+        }
+        cout << indent() << "]";
+    }
     virtual void visitConstDataNode(ConstDataNode& n) {
         cout << indent() << "ConstData" << endl;
         level++;

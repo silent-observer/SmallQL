@@ -52,6 +52,26 @@ void DeleteStmtNode::prettyPrint(ostream& s, int level) const
     s << indent() << "}" << endl;
 }
 
+void UpdateStmtNode::prettyPrint(ostream& s, int level) const
+{
+    s << indent() << "UPDATE {" << endl;
+    tableName->prettyPrint(s, level + 1);
+    s << indent() << "} SET {" << endl;
+    for (const auto& p : setData) {
+        s << indent1();
+        p.first->prettyPrint(s, level + 1);
+        s << " = ";
+        p.second->prettyPrint(s, level + 1);
+        s << endl;
+    }
+    if (whereCond) {
+        s << indent() << "} WHERE {" << endl << indent1();
+        whereCond->prettyPrint(s, level);
+        s << endl;
+    }
+    s << indent() << "}" << endl;
+}
+
 void SelectStmtNode::prettyPrint(ostream& s, int level) const
 {
     select.prettyPrint(s, level);

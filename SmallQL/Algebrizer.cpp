@@ -274,6 +274,43 @@ QTablePtr DeleteStmtNode::algebrize(const SystemInfoManager& sysMan) {
     return result;
 }
 
+QTablePtr UpdateStmtNode::algebrize(const SystemInfoManager& sysMan) {
+    auto result = make_unique<UpdaterNode>();
+    auto table = tableName->algebrize(sysMan);
+    result->tableId = convert<ReadTableQNode>(table)->tableId;
+    result->source = move(table);
+    if (whereCond != NULL) {
+        auto filter = make_unique<FilterQNode>();
+        filter->type = result->source->type;
+        filter->cond = whereCond->algebrizeWithContext(sysMan, result->source->type, result->source->type);
+        filter->source = move(result->source);
+        result->source = move(filter);
+    }
+    result->type = IntermediateType();
+    result->affectsVarData = false;
+
+    for (const auto& p : setData) {
+        auto columnExpr = p.first->algebrizeWithContext(sysMan, result->source->type, result->source->type);
+        auto valueExpr = p.second->algebrizeWithContext(sysMan, result->source->type, result->source->type);
+        auto col = convert<ColumnQNode>(columnExpr);
+        if (!col) 
+            throw SemanticException("Cannot SET anything but raw columns!");
+        result->setData.push_back(make_pair(col->columnId, move(valueExpr)));
+        for (auto indexId : sysMan.getTableInfo(result->tableId).indexes) {
+            for (const auto& indexCol : sysMan.getIndexInfo(result->tableId, indexId).schema.columns) {
+                if (indexCol.id == col->columnId) {
+                    result->affectedIndexes.insert(indexId);
+                    break;
+                }
+            }
+        }
+        if (is<VariableLengthType>(col->type.type))
+            result->affectsVarData = true;
+    }
+
+    return result;
+}
+
 QTablePtr SelectStmtNode::algebrize(const SystemInfoManager& sysMan) {
     auto result = make_unique<SelectorNode>();
     result->source = select.algebrize(sysMan);

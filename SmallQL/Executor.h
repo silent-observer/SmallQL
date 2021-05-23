@@ -15,7 +15,8 @@ using QTablePtr = unique_ptr<QTableNode>;
 enum class QueryType {
     Select,
     Insert,
-    Delete
+    Delete,
+    Update
 };
 
 class Executor {
@@ -33,6 +34,10 @@ public:
     uint16_t tableId;
     IntermediateType resultType;
     string message;
+
+    vector<pair<uint16_t, unique_ptr<QScalarNode>>> setData;
+    set<uint16_t> affectedIndexes;
+    bool affectsVarData;
 
     Executor(PageManager& pageManager, SystemInfoManager& sysMan, BlobManager& blobManager)
         : pageManager(pageManager), sysMan(sysMan), blobManager(blobManager) {}

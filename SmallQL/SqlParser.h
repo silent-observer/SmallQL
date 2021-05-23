@@ -119,6 +119,7 @@ private:
     unique_ptr<SelectNode> parseSelect();
     unique_ptr<InsertStmtNode> parseInsert();
     unique_ptr<DeleteStmtNode> parseDelete();
+    unique_ptr<UpdateStmtNode> parseUpdate();
     unique_ptr<ColumnNameExpr> parseColumnNameExpr();
     unique_ptr<ConstExpr> parseConstExpr();
     unique_ptr<FuncExpr> parseFuncExpr();
