@@ -191,17 +191,20 @@ void PreparerVisitor::visitExprDataNode(ExprDataNode& n) {
     throw new SemanticException("Non-constant data node");
 }
 
-vector<ValueArray> Executor::execute() {
+pair<bool, vector<ValueArray>> Executor::execute() {
     switch (queryType)
     {
     case QueryType::Select:
         message = "<empty set>";
-        return selectData(sequences.back().get());
+        return make_pair(true, selectData(sequences.back().get()));
     case QueryType::Insert: {
         Inserter inserter(trMan, sysMan, blobManager, tableId);
-        int count = inserter.insert(sequences.back().get());
-        message = "Successfully inserted " + to_string(count) + " rows!";
-        return vector<ValueArray>();
+        pair<bool, int> result = inserter.insert(sequences.back().get());
+        if (result.first)
+            message = "Successfully inserted " + to_string(result.second) + " rows!";
+        else
+            message = "Couldn't insert rows!";
+        return make_pair(result.first, vector<ValueArray>());
     }
     case QueryType::Delete: {
         Deleter deleter(trMan, sysMan, blobManager, tableId);
@@ -210,9 +213,12 @@ vector<ValueArray> Executor::execute() {
         dataFiles.clear();
         indexFiles.clear();
 
-        int count = deleter.deleteAll();
-        message = "Successfully deleted " + to_string(count) + " rows!";
-        return vector<ValueArray>();
+        pair<bool, int> result = deleter.deleteAll();
+        if (result.first)
+            message = "Successfully deleted " + to_string(result.second) + " rows!";
+        else 
+            message = "Couldn't delete rows!";
+        return make_pair(result.first, vector<ValueArray>());
     }
     case QueryType::Update: {
         Updater updater(trMan, sysMan, blobManager, tableId, move(setData), affectedIndexes, affectsVarData);
@@ -221,11 +227,14 @@ vector<ValueArray> Executor::execute() {
         dataFiles.clear();
         indexFiles.clear();
 
-        int count = updater.updateAll();
-        message = "Successfully updated " + to_string(count) + " rows!";
-        return vector<ValueArray>();
+        pair<bool, int> result = updater.updateAll();
+        if (result.first)
+            message = "Successfully updated " + to_string(result.second) + " rows!";
+        else
+            message = "Couldn't update rows!";
+        return make_pair(result.first, vector<ValueArray>());
     }
     default:
-        return vector<ValueArray>();
+        return make_pair(false, vector<ValueArray>());
     }
 }

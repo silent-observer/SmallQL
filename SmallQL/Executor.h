@@ -42,5 +42,5 @@ public:
     Executor(TransactionManager& trMan, SystemInfoManager& sysMan, BlobManager& blobManager)
         : trMan(trMan), sysMan(sysMan), blobManager(blobManager) {}
     void prepare(QTablePtr tree);
-    vector<ValueArray> execute();
+    pair<bool, vector<ValueArray>> execute();
 };

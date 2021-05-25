@@ -66,6 +66,8 @@ int main()
             auto parsed = parser.parse();
             //cout << parsed->prettyPrint();
 
+            bool success = true;
+
             if (!tryDDL(parsed, trMan, sysMan)) {
                 auto qtree = parsed->algebrize(sysMan);
                 //cout << endl << "Before optimization:" << endl << endl;
@@ -77,13 +79,16 @@ int main()
                 Executor exec(trMan, sysMan, blobManager);
                 exec.prepare(move(qtree));
                 auto result = exec.execute();
-                if (result.size() == 0)
+                if (result.second.size() == 0)
                     cout << exec.message << endl;
                 else
-                    cout << prettyPrintTable(result, exec.resultType);
+                    cout << prettyPrintTable(result.second, exec.resultType);
+                success = result.first;
             }
 
-            if (sysMan.autoCommitMode)
+            if (!success)
+                trMan.rollback();
+            else if (sysMan.autoCommitMode)
                 trMan.commit();
         }
         catch (const SQLException& e) {

@@ -546,15 +546,16 @@ bool Inserter::insert(RecordPtr record) {
     return true;
 }
 
-int Inserter::insert(DataSequence* source) {
+pair<bool, int> Inserter::insert(DataSequence* source) {
     int count = 0;
     source->reset();
     while (!source->hasEnded()) {
         bool result = insert(source->get());
-        if (result) count++;
+        if (!result) return make_pair(false, count);
+        count++;
         source->advance();
     }
-    return count;
+    return make_pair(true, count);
 }
 
 
@@ -569,7 +570,7 @@ void Deleter::prepareAll(DataSequence* source) {
     }
 }
 
-int Deleter::deleteAll() {
+pair<bool, int> Deleter::deleteAll() {
     DataFile dataFile(trMan, sysMan, tableId);
     vector<IndexFile> indexFiles;
     const Schema& schema = sysMan.getTableSchema(tableId);
@@ -587,7 +588,8 @@ int Deleter::deleteAll() {
             blobManager.deleteBlob(blob);
         }
         bool result = dataFile.deleteRecord(p.first);
-        if (result) count++;
+        if (result) return make_pair(false, count);
+        count++;
 
         for (auto& index : indexFiles) {
             ValueArray keyValues = index.getKeySchema().narrow(p.second);
@@ -595,7 +597,7 @@ int Deleter::deleteAll() {
             index.deleteKey(keys.first, p.first);
         }
     }
-    return count;
+    return make_pair(true, count);
 }
 
 Updater::Updater(TransactionManager& trMan, 
@@ -621,7 +623,7 @@ void Updater::prepareAll(DataSequence* source) {
     }
 }
 
-int Updater::updateAll() {
+pair<bool, int> Updater::updateAll() {
     DataFile dataFile(trMan, sysMan, tableId);
     vector<IndexFile> indexFiles;
     const Schema& schema = sysMan.getTableSchema(tableId);
@@ -664,20 +666,7 @@ int Updater::updateAll() {
     }
 
     if (!result) {
-        for (uint16_t indexId : affectedIndexes) {
-            const Schema& keySchema = sysMan.getIndexSchema(tableId, indexId);
-            int i = 0;
-            for (const auto& p : data) {
-                auto newKeys = keySchema.encode(keySchema.narrow(newData[i])).first;
-                indexFiles[j].deleteKey(newKeys, p.first);
-                i++;
-            }
-            for (const auto& p : data) {
-                auto oldKeys = keySchema.encode(keySchema.narrow(p.second)).first;
-                indexFiles[j].addKey(oldKeys, p.first);
-            }
-            j++;
-        }
+        return make_pair(false, count);
     } 
     else {
         int i = 0;
@@ -693,5 +682,5 @@ int Updater::updateAll() {
             i++;
         }
     }
-    return count;
+    return make_pair(true, count);
 }

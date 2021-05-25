@@ -211,7 +211,7 @@ private:
 public:
     Inserter(TransactionManager& trMan, const SystemInfoManager& sysMan, BlobManager& blobManager, uint16_t tableId);
     bool insert(RecordPtr record);
-    int insert(DataSequence* source);
+    pair<bool, int> insert(DataSequence* source);
 };
 
 class Deleter {
@@ -224,7 +224,7 @@ private:
 public:
     Deleter(TransactionManager& trMan, const SystemInfoManager& sysMan, BlobManager& blobManager, uint16_t tableId);
     void prepareAll(DataSequence* source);
-    int deleteAll();
+    pair<bool, int> deleteAll();
 };
 
 class Updater {
@@ -246,5 +246,5 @@ public:
         set<uint16_t> affectedIndexes,
         bool affectsVarData);
     void prepareAll(DataSequence* source);
-    int updateAll();
+    pair<bool, int> updateAll();
 };
