@@ -5,25 +5,25 @@
 
 #define INDEXFILE_ID(tableId, indexId) ((tableId & 0xFFFF) << 16 | (indexId & 0xFFFF))
 
-IndexFile::IndexFile(PageManager& pageManager, int tableId, int indexId, const Schema& keySchema, bool isUnique)
-    : Pager(pageManager, INDEXFILE_ID(tableId, indexId))
+IndexFile::IndexFile(TransactionManager& trMan, int tableId, int indexId, const Schema& keySchema, bool isUnique)
+    : Pager(trMan, INDEXFILE_ID(tableId, indexId))
     , keySchema(keySchema)
     , isUnique(isUnique) {
-    Page headerPage = retrieve(0);
+    Page headerPage = retrieveWrite(0);
     if (memcmp(headerPage, "SmDI", 4) != 0) {
         initFile(tableId, indexId, keySchema.getSize(), headerPage);
     }
     initPointers(headerPage);
 }
 
-IndexFile::IndexFile(PageManager& pageManager, const SystemInfoManager& sysMan, string tableName, string indexName)
-    : IndexFile(pageManager, sysMan.getTableId(tableName), 
+IndexFile::IndexFile(TransactionManager& trMan, const SystemInfoManager& sysMan, string tableName, string indexName)
+    : IndexFile(trMan, sysMan.getTableId(tableName), 
         sysMan.getIndexId(tableName, indexName), 
         sysMan.getIndexSchema(tableName, indexName),
         sysMan.getIndexInfo(tableName, indexName).isUnique) {}
 
-void IndexFile::deleteFile(PageManager& pageManager, int tableId, int indexId) {
-    pageManager.deleteFile(INDEXFILE_ID(tableId, indexId));
+void IndexFile::deleteFile(TransactionManager& trMan, int tableId, int indexId) {
+    trMan.deleteFile(INDEXFILE_ID(tableId, indexId));
 }
 
 void IndexFile::initPointers(Page headerPage) {
@@ -64,7 +64,7 @@ void IndexFile::initFile(int tableId, int indexId, uint16_t keySize, Page header
 NodeId IndexFile::allocateFreePage() {
     if (*fplStart != NULL32) {
         NodeId result = *fplStart;
-        Page p = retrieve(result);
+        Page p = retrieveWrite(result);
         if (result == 0) p += 0x20;
         if (p[0] != 0x00) {
             cout << "File is in incorrect format!" << endl;
@@ -85,7 +85,7 @@ NodeId IndexFile::allocateFreePage() {
 void IndexFile::deallocatePage(NodeId id) {
     //if (id == 24)
     //    cout << "P-" << endl;
-    Page p = retrieve(id);
+    Page p = retrieveWrite(id);
     if (p[0] == 0x00) {
         cout << "File is in incorrect format!" << endl;
         return;
@@ -102,14 +102,14 @@ NodeId& IndexFile::nodeParent(NodeId id) {
     Page parentingPage;
     uint16_t idInPage;
     if (id < PARENTING_ZERO_SIZE) {
-        parentingPage = retrieve(0) + 0x20;
+        parentingPage = retrieveWrite(0) + 0x20;
         idInPage = id - 1;
         lastParentingPageId = 0;
     }
     else {
         uint32_t parentingNumber = (id - PARENTING_ZERO_SIZE) / PARENTING_NORMAL_SIZE;
         NodeId parentingId = parentingNumber * PARENTING_NORMAL_SIZE + PARENTING_ZERO_SIZE;
-        parentingPage = retrieve(parentingId);
+        parentingPage = retrieveWrite(parentingId);
         idInPage = (id - PARENTING_ZERO_SIZE) % PARENTING_NORMAL_SIZE - 1;
         lastParentingPageId = parentingId;
     }
@@ -124,7 +124,7 @@ void IndexFile::updateParent(NodeId id, NodeId parent) {
 bool IndexFile::addKey(const char* key, RecordId val) {
     NodeId currentId = *rootPageId;
     while (true) {
-        Page page = retrieve(currentId);
+        Page page = retrieveRead(currentId);
         if (page[0] == 0x01) { // Internal
             InternalNode n(*this, currentId, keySize);
             n.consistencyCheck();
@@ -150,7 +150,7 @@ bool IndexFile::addKey(const char* key, RecordId val) {
 RecordId IndexFile::findKey(const char* key) {
     NodeId currentId = *rootPageId;
     while (true) {
-        Page page = retrieve(currentId);
+        Page page = retrieveRead(currentId);
         if (page[0] == 0x01) { // Internal
             InternalNode n(*this, currentId, keySize);
             pair<bool, SlotId> p = n.binarySearch(key);
@@ -171,7 +171,7 @@ RecordId IndexFile::findKey(const char* key) {
 
 bool IndexFile::deleteKey(const char* key, RecordId val) {
     NodeId currentId = *rootPageId;
-    Page page = retrieve(currentId);
+    Page page = retrieveRead(currentId);
     if (page[0] == 0x01) { // Internal
         InternalNode n(*this, currentId, keySize);
         return n.deleteFromNode(key, val);
@@ -184,7 +184,7 @@ bool IndexFile::deleteKey(const char* key, RecordId val) {
 
 void IndexFile::fullConsistencyCheck(NodeId id) {
 #ifdef CHECKS_ENABLED
-    Page page = retrieve(id);
+    Page page = retrieveRead(id);
     if (page[0] == 0x01) { // Internal
         InternalNode n(*this, id, keySize);
         n.consistencyCheck();
@@ -216,7 +216,7 @@ void IndexFile::CustomIterator::updateValue() {
     if (ptrStack.size() == 0) return;
     NodeId nodeId = ptrStack.back().first;
     SlotId slotId = ptrStack.back().second;
-    Page p = indexFile->retrieve(nodeId);
+    Page p = indexFile->retrieveRead(nodeId);
     if (p[0] == 0x01) { // Internal
         InternalNode n(const_cast<IndexFile&>(*indexFile), nodeId, indexFile->keySize);
         recordId = n.getCellRecord(slotId);
@@ -232,7 +232,7 @@ void IndexFile::CustomIterator::advance() {
         if (ptrStack.size() == 0) return;
         NodeId& nodeId = ptrStack.back().first;
         SlotId& slotId = ptrStack.back().second;
-        Page p = indexFile->retrieve(nodeId);
+        Page p = indexFile->retrieveRead(nodeId);
         if (p[0] == 0x01) { // Internal
             InternalNode n(const_cast<IndexFile&>(*indexFile), nodeId, indexFile->keySize);
             if (slotId == n.cellCount()) {
@@ -268,7 +268,7 @@ IndexFile::const_iterator IndexFile::getIterator(const char* key) {
     vector<pair<NodeId, SlotId>> ptrStack;
     NodeId currentId = *rootPageId;
     while (true) {
-        Page page = retrieve(currentId);
+        Page page = retrieveRead(currentId);
         if (page[0] == 0x01) { // Internal
             InternalNode n(*this, currentId, keySize);
             pair<bool, SlotId> p = n.binarySearch(key);
@@ -294,7 +294,7 @@ IndexFile::const_iterator IndexFile::getIterator(ValueArray key) {
     vector<pair<NodeId, SlotId>> ptrStack;
     NodeId currentId = *rootPageId;
     while (true) {
-        Page page = retrieve(currentId);
+        Page page = retrieveRead(currentId);
         if (page[0] == 0x01) { // Internal
             InternalNode n(*this, currentId, keySize);
             pair<bool, SlotId> p = n.binarySearch(key);

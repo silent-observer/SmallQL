@@ -28,7 +28,7 @@ static void executeDropTable(const DropTableNode* n, SystemInfoManager& sysMan) 
     cout << "Table " << n->name << " successfully dropped!" << endl;
 }
 
-static void executeCreateIndex(const CreateIndexNode* n, PageManager& pageManager, SystemInfoManager& sysMan) {
+static void executeCreateIndex(const CreateIndexNode* n, TransactionManager& trMan, SystemInfoManager& sysMan) {
     if (!sysMan.tableExists(n->tableName)) {
         cout << "Table " << n->tableName << " doesn't exist!" << endl;
         return;
@@ -39,8 +39,8 @@ static void executeCreateIndex(const CreateIndexNode* n, PageManager& pageManage
         return;
     }
     sysMan.createIndex(tableId, n->name, n->columns, n->isUnique);
-    IndexFile indexFile(pageManager, sysMan, n->tableName, n->name);
-    DataFile dataFile(pageManager, sysMan, n->tableName);
+    IndexFile indexFile(trMan, sysMan, n->tableName, n->name);
+    DataFile dataFile(trMan, sysMan, n->tableName);
     bool result = indexFile.fillFrom(dataFile, sysMan.getTableSchema(n->tableName));
     if (result)
         cout << "Index " << n->name << " successfully created!" << endl;
@@ -116,7 +116,7 @@ static void executeShow(const ShowNode* n, SystemInfoManager& sysMan) {
     }
 }
 
-bool tryDDL(const unique_ptr<StatementNode>& n, PageManager& pageManager, SystemInfoManager& sysMan) {
+bool tryDDL(const unique_ptr<StatementNode>& n, TransactionManager& trMan, SystemInfoManager& sysMan) {
     if (auto crTab = convert<CreateTableNode>(n)) {
         executeCreateTable(crTab, sysMan);
         return true;
@@ -126,7 +126,7 @@ bool tryDDL(const unique_ptr<StatementNode>& n, PageManager& pageManager, System
         return true;
     }
     if (auto crInd = convert<CreateIndexNode>(n)) {
-        executeCreateIndex(crInd, pageManager, sysMan);
+        executeCreateIndex(crInd, trMan, sysMan);
         return true;
     }
     if (auto drInd = convert<DropIndexNode>(n)) {

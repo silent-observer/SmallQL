@@ -11,8 +11,8 @@ bool operator<(const BlobManager::BlobData& l, const BlobManager::BlobData& r) {
     return false;
 }
 
-BlobManager::BlobManager(PageManager& pageManager) : Pager(pageManager, 0xFFFF0000) {
-    Page headerPage = retrieve(0);
+BlobManager::BlobManager(TransactionManager& trMan) : Pager(trMan, 0xFFFF0000) {
+    Page headerPage = retrieveWrite(0);
     if (memcmp(headerPage, "SmDB", 4) != 0) {
         initFile(headerPage);
     }
@@ -45,12 +45,12 @@ void BlobManager::loadLists(Page headerPage) {
         }
         PageId nextPage = *(uint32_t*)(isFirst ? headerPage + 0x1FFC : fblData + 0x1FFC);
         if (nextPage == NULL32) break;
-        fblData = retrieve(nextPage);
+        fblData = retrieveRead(nextPage);
         isFirst = false;
     }
 
     int indexPages = (*handleCount + handlesPerIndex - 1) / handlesPerIndex;
-    Page masterIndexPage = retrieve(1);
+    Page masterIndexPage = retrieveRead(1);
     int indexPagesToBeRead = indexPages;
     while (true) {
         int count = min(indexPagesToBeRead, indexesPerMasterIndex);
@@ -60,7 +60,7 @@ void BlobManager::loadLists(Page headerPage) {
         }
         PageId nextPageId = *(PageId*)(masterIndexPage + 2047 * 4);
         if (nextPageId == NULL32) break;
-        masterIndexPage = retrieve(nextPageId);
+        masterIndexPage = retrieveRead(nextPageId);
     }
 }
 
@@ -75,7 +75,7 @@ void BlobManager::initFile(Page headerPage) {
     *(uint32_t*)(headerPage + 0x1FFC) = NULL32;
     update(0);
 
-    Page masterIndexPage = retrieve(1);
+    Page masterIndexPage = retrieveWrite(1);
     memset(masterIndexPage, 0xFF, PAGE_SIZE);
     update(1);
 }
@@ -86,7 +86,7 @@ BlobManager::~BlobManager() {
 
 void BlobManager::flushLists() {
     PageId currentPageId = 0;
-    Page fblData = retrieve(0) + 0x1A;
+    Page fblData = retrieveWrite(0) + 0x1A;
     bool isFirst = true;
     int fblSize = freeBlobList.size();
     auto iter = freeBlobList.begin();
@@ -116,7 +116,7 @@ void BlobManager::flushLists() {
         update(currentPageId);
 
         currentPageId = nextPage;
-        fblData = retrieve(nextPage);
+        fblData = retrieveWrite(nextPage);
         isFirst = false;
     }
 }
@@ -126,7 +126,7 @@ pair<uint32_t, const char*> BlobManager::readBlob(BlobId id) const {
         return make_pair(0, nullptr);
     int indexId = id / handlesPerIndex;
     int idInIndex = id % handlesPerIndex;
-    Page indexPage = retrieve(indexPageList[indexId]);
+    Page indexPage = retrieveRead(indexPageList[indexId]);
     const char* entry = indexPage + idInIndex * 11;
     char status = *entry;
     if (status != 1) 
@@ -136,18 +136,18 @@ pair<uint32_t, const char*> BlobManager::readBlob(BlobId id) const {
     uint32_t pageId = *(uint32_t*)(entry + 0x5);
     uint16_t offset = *(uint16_t*)(entry + 0x9);
     if (size < overflowSize) {
-        Page page = retrieve(pageId);
+        Page page = retrieveRead(pageId);
         return make_pair(size, page + offset + 2);
     }
     else {
         uint32_t remainderSize = size % overflowSize;
         buffer.resize(size);
-        Page page = retrieve(pageId);
+        Page page = retrieveRead(pageId);
         memcpy(buffer.data(), page + offset + 2, remainderSize);
         PageId overflowId = *(PageId*)(page + offset + 2 + remainderSize);
         int i = 0;
         while (true) {
-            Page overflowPage = retrieve(overflowId);
+            Page overflowPage = retrieveRead(overflowId);
             memcpy(buffer.data() + remainderSize + i * overflowSize, overflowPage, overflowSize);
             overflowId = *(PageId*)(overflowPage + overflowSize);
             if (overflowId == NULL32) break;
@@ -169,17 +169,17 @@ void BlobManager::pushBackIndex(PageId indexPageId) {
     int masterIndexId = indexId / indexesPerMasterIndex;
     int idInMasterIndex = indexId % indexesPerMasterIndex;
     
-    Page masterIndexPage = retrieve(1);
+    Page masterIndexPage = retrieveWrite(1);
     PageId masterIndexPageId = 1;
     int desiredMasterIndexId = idInMasterIndex == 0 ? masterIndexId - 1 : masterIndexId;
     for (int i = 0; i < desiredMasterIndexId; i++) {
         masterIndexPageId = *(PageId*)(masterIndexPage + 2047 * 4);
-        masterIndexPage = retrieve(masterIndexPageId);
+        masterIndexPage = retrieveWrite(masterIndexPageId);
     }
     if (idInMasterIndex == 0 && masterIndexId != 0) {
         PageId newMasterIndexPageId = (*pageCount)++;
         *(PageId*)(masterIndexPage + 2047 * 4) = newMasterIndexPageId;
-        masterIndexPage = retrieve(newMasterIndexPageId);
+        masterIndexPage = retrieveWrite(newMasterIndexPageId);
         memset(masterIndexPage, 0xFF, PAGE_SIZE);
         update(masterIndexPageId);
         masterIndexPageId = newMasterIndexPageId;
@@ -221,7 +221,7 @@ BlobId BlobManager::addBlob(const char* data, uint32_t size) {
         int idInIndex = handle % handlesPerIndex;
 
         indexPageId = indexPageList[indexId];
-        Page indexPage = retrieve(indexPageId);
+        Page indexPage = retrieveWrite(indexPageId);
         handleInfo = indexPage + idInIndex * 11;
         char status = *handleInfo;
         assert(status == 0);
@@ -239,7 +239,7 @@ BlobId BlobManager::addBlob(const char* data, uint32_t size) {
         else {
             indexPageId = indexPageList[indexId];
         }
-        Page indexPage = retrieve(indexPageId);
+        Page indexPage = retrieveWrite(indexPageId);
         handleInfo = indexPage + idInIndex * 11;
     }
 
@@ -275,7 +275,7 @@ BlobId BlobManager::addBlob(const char* data, uint32_t size) {
     *(uint32_t*)(handleInfo + 0x5) = activeBlobData.page;
     *(uint16_t*)(handleInfo + 0x9) = activeBlobData.offset;
 
-    Page dataPage = retrieve(initialBlobData.page);
+    Page dataPage = retrieveWrite(initialBlobData.page);
     char* activeBlobStart = dataPage + activeBlobData.offset;
     *(uint16_t*)activeBlobStart = 0xFFFF;
     *(uint16_t*)(activeBlobStart + activeBlobData.size + 2) = 0xFFFF;
@@ -284,7 +284,7 @@ BlobId BlobManager::addBlob(const char* data, uint32_t size) {
     if (overflowPageCount > 0) {
         PageId firstOverflowPageId = getOverflowPage();
         *(PageId*)(activeBlobStart + 2 + remainderSize) = firstOverflowPageId;
-        Page firstOverflowPage = retrieve(firstOverflowPageId);
+        Page firstOverflowPage = retrieveWrite(firstOverflowPageId);
         *(PageId*)(firstOverflowPage + overflowSize) = NULL32;
         memcpy(firstOverflowPage, data + remainderSize, overflowSize);
         update(firstOverflowPageId);
@@ -293,7 +293,7 @@ BlobId BlobManager::addBlob(const char* data, uint32_t size) {
         Page previousOverflowPage = firstOverflowPage;
         for (int i = 1; i < overflowPageCount; i++) {
             PageId overflowPageId = getOverflowPage();
-            Page overflowPage = retrieve(overflowPageId);
+            Page overflowPage = retrieveWrite(overflowPageId);
             *(PageId*)(previousOverflowPage + overflowSize) = overflowPageId;
             update(previousOverflowPageId);
             
@@ -327,7 +327,7 @@ bool BlobManager::deleteBlob(BlobId id) {
         return false;
     int indexId = id / handlesPerIndex;
     int idInIndex = id % handlesPerIndex;
-    Page indexPage = retrieve(indexPageList[indexId]);
+    Page indexPage = retrieveWrite(indexPageList[indexId]);
     char* entry = indexPage + idInIndex * 11;
     char status = *entry;
     if (status != 1) 
@@ -349,13 +349,13 @@ bool BlobManager::deleteBlob(BlobId id) {
     update(0);
     update(indexPageList[indexId]);
 
-    Page dataPage = retrieve(pageId);
+    Page dataPage = retrieveWrite(pageId);
     char* blobData = dataPage + offset;
 
     if (overflowPageCount > 0) {
         PageId overflowPageId = *(PageId*)(blobData + 2 + remainderSize);
         while (overflowPageId != NULL32) {
-            Page overflowPage = retrieve(overflowPageId);
+            Page overflowPage = retrieveWrite(overflowPageId);
             PageId nextOverflowPageId = *(PageId*)(overflowPage + overflowSize);
             *(uint16_t*)overflowPage = overflowSize;
             *(uint16_t*)(overflowPage + overflowSize + 2) = overflowSize;

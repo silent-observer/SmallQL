@@ -40,19 +40,3 @@ public:
         flushMetadata();
     }
 };
-
-class Pager {
-private:
-    PageManager& pageManager;
-    VirtualFileID fileId;
-public:
-    Pager(PageManager& pageManager, VirtualFileID fileId)
-        : pageManager(pageManager), fileId(fileId) {}
-
-    inline Page retrieve(PageId id) const {
-        return pageManager.retrieve(fileId, id);
-    }
-    inline void update(PageId id) {
-        pageManager.update(fileId, id);
-    }
-};

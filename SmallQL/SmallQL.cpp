@@ -23,10 +23,11 @@ int main()
 {
     srand(1);
 
-    PageManager pageManager("Big.dbf", "meta.dbm");
-    SystemInfoManager sysMan(pageManager);
+    TransactionManager trMan("Big.dbf", "meta.dbm");
+    SystemInfoManager sysMan(trMan);
     sysMan.load();
-    BlobManager blobManager(pageManager);
+    BlobManager blobManager(trMan);
+    trMan.commit();
 
     //string blob1(100000, 'Y');
     //blobManager.addBlob(blob1.c_str(), blob1.size());
@@ -50,9 +51,9 @@ int main()
         });
 
         while (textFuture.wait_for(chrono::seconds(0)) != future_status::ready) {
-            bool flushed = pageManager.flushOne();
+            bool flushed = trMan.flushOne();
             if (!flushed) {
-                pageManager.flushMetadata();
+                trMan.flushMetadata();
                 break;
             }
         }
@@ -65,7 +66,7 @@ int main()
             auto parsed = parser.parse();
             //cout << parsed->prettyPrint();
 
-            if (!tryDDL(parsed, pageManager, sysMan)) {
+            if (!tryDDL(parsed, trMan, sysMan)) {
                 auto qtree = parsed->algebrize(sysMan);
                 //cout << endl << "Before optimization:" << endl << endl;
                 //print(qtree);
@@ -73,7 +74,7 @@ int main()
                 //cout << endl << "After optimization:" << endl << endl;
                 //print(qtree);
                 //cout << endl;
-                Executor exec(pageManager, sysMan, blobManager);
+                Executor exec(trMan, sysMan, blobManager);
                 exec.prepare(move(qtree));
                 auto result = exec.execute();
                 if (result.size() == 0)
@@ -81,6 +82,9 @@ int main()
                 else
                     cout << prettyPrintTable(result, exec.resultType);
             }
+
+            if (sysMan.autoCommitMode)
+                trMan.commit();
         }
         catch (const SQLException& e) {
             cout << e.what() << endl;

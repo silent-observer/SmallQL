@@ -1,6 +1,6 @@
 #pragma once
 #include "DataFile.h"
-#include "PageManager.h"
+#include "TransactionManager.h"
 #include "SystemInfoManager.h"
 #include "DataSequence.h"
 #include "GroupDataSequence.h"
@@ -27,7 +27,7 @@ public:
     map<pair<uint16_t, uint16_t>, unique_ptr<IndexFile>> indexFiles;
     vector<unique_ptr<DataSequence>> sequences;
     vector<unique_ptr<GroupDataSequence>> groupSequences;
-    PageManager& pageManager;
+    TransactionManager& trMan;
     SystemInfoManager& sysMan;
     BlobManager& blobManager;
     QueryType queryType;
@@ -39,8 +39,8 @@ public:
     set<uint16_t> affectedIndexes;
     bool affectsVarData;
 
-    Executor(PageManager& pageManager, SystemInfoManager& sysMan, BlobManager& blobManager)
-        : pageManager(pageManager), sysMan(sysMan), blobManager(blobManager) {}
+    Executor(TransactionManager& trMan, SystemInfoManager& sysMan, BlobManager& blobManager)
+        : trMan(trMan), sysMan(sysMan), blobManager(blobManager) {}
     void prepare(QTablePtr tree);
     vector<ValueArray> execute();
 };

@@ -38,10 +38,10 @@ const Schema indexColumnsSchema(
 );
 
 void SystemInfoManager::load() {
-    DataFile tablesFile(pageManager, -1, tablesSchema.getSize());
-    DataFile columnsFile(pageManager, -2, columnsSchema.getSize());
-    DataFile indexesFile(pageManager, -3, indexesSchema.getSize());
-    DataFile indexColumnsFile(pageManager, -4, indexColumnsSchema.getSize());
+    DataFile tablesFile(trMan, -1, tablesSchema.getSize());
+    DataFile columnsFile(trMan, -2, columnsSchema.getSize());
+    DataFile indexesFile(trMan, -3, indexesSchema.getSize());
+    DataFile indexColumnsFile(trMan, -4, indexColumnsSchema.getSize());
 
     struct ColumnData {
         string columnName;
@@ -128,7 +128,7 @@ uint16_t SystemInfoManager::addTable(string name) {
     makeUpper(name);
     if (tableNames.count(name) != 0)
         throw InternalTablesException("Table " + name + " already exists!");
-    DataFile tablesFile(pageManager, -1, tablesSchema.getSize());
+    DataFile tablesFile(trMan, -1, tablesSchema.getSize());
     uint16_t tableId = 0;
     while (tables.count(tableId) != 0) tableId++;
 
@@ -146,7 +146,7 @@ uint16_t SystemInfoManager::addColumn(uint16_t tableId, string name,
     string type, bool isPrimary, bool canBeNull, string defaultValue) {
     makeUpper(name);
 
-    DataFile columnsFile(pageManager, -2, columnsSchema.getSize());
+    DataFile columnsFile(trMan, -2, columnsSchema.getSize());
     uint16_t columnId = tables[tableId].schema.columns.size();
     if (isPrimary) canBeNull = false;
     uint8_t flags = (int)isPrimary | ((int)canBeNull << 1);
@@ -166,8 +166,8 @@ uint16_t SystemInfoManager::addColumn(uint16_t tableId, string name,
 }
 
 void SystemInfoManager::createPrimaryIndex(uint16_t tableId) {
-    DataFile indexesFile(pageManager, -3, indexesSchema.getSize());
-    DataFile indexColumnsFile(pageManager, -4, indexColumnsSchema.getSize());
+    DataFile indexesFile(trMan, -3, indexesSchema.getSize());
+    DataFile indexColumnsFile(trMan, -4, indexColumnsSchema.getSize());
 
     auto encoded = indexesSchema.encode({
         Value(tableId), Value(0), Value((int8_t)0x01), Value("PRIMARY")
@@ -187,16 +187,16 @@ void SystemInfoManager::createPrimaryIndex(uint16_t tableId) {
     indexNames[make_pair(tableId, "PRIMARY")] = 0;
     tables[tableId].indexes.insert(0);
 
-    DataFile table(pageManager, *this, tableId);
-    IndexFile index(pageManager, tableId, 0, tables[tableId].primaryKeys, true);
+    DataFile table(trMan, *this, tableId);
+    IndexFile index(trMan, tableId, 0, tables[tableId].primaryKeys, true);
 }
 
 void SystemInfoManager::dropTable(string name) {
     uint16_t tableId = getTableId(name);
-    DataFile tablesFile(pageManager, -1, tablesSchema.getSize());
-    DataFile columnsFile(pageManager, -2, columnsSchema.getSize());
-    DataFile indexesFile(pageManager, -3, indexesSchema.getSize());
-    DataFile indexColumnsFile(pageManager, -4, indexColumnsSchema.getSize());
+    DataFile tablesFile(trMan, -1, tablesSchema.getSize());
+    DataFile columnsFile(trMan, -2, columnsSchema.getSize());
+    DataFile indexesFile(trMan, -3, indexesSchema.getSize());
+    DataFile indexColumnsFile(trMan, -4, indexColumnsSchema.getSize());
 
     for (auto i = tablesFile.begin(); i != tablesFile.end(); i++) {
         ValueArray decoded = tablesSchema.decode(*i, nullptr);
@@ -227,9 +227,9 @@ void SystemInfoManager::dropTable(string name) {
     tableNames.erase(name);
     tables.erase(tableId);
 
-    DataFile::deleteFile(pageManager, tableId);
+    DataFile::deleteFile(trMan, tableId);
     for (auto indexId : indexIds) {
-        IndexFile::deleteFile(pageManager, tableId, indexId);
+        IndexFile::deleteFile(trMan, tableId, indexId);
     }
 }
 
@@ -252,8 +252,8 @@ void SystemInfoManager::createIndex(uint16_t tableId, string name, vector<string
     }
     keySchema.updateData(true);
 
-    DataFile indexesFile(pageManager, -3, indexesSchema.getSize());
-    DataFile indexColumnsFile(pageManager, -4, indexColumnsSchema.getSize());
+    DataFile indexesFile(trMan, -3, indexesSchema.getSize());
+    DataFile indexColumnsFile(trMan, -4, indexColumnsSchema.getSize());
 
     int8_t flags = isUnique ? 0x01 : 0x00;
     
@@ -273,14 +273,14 @@ void SystemInfoManager::createIndex(uint16_t tableId, string name, vector<string
     indexes[make_pair(tableId, indexId)] = IndexInfo{ indexId, name, keySchema, isUnique};
     indexNames[make_pair(tableId, name)] = indexId;
     tables[tableId].indexes.insert(indexId);
-    IndexFile index(pageManager, tableId, indexId, keySchema, isUnique);
+    IndexFile index(trMan, tableId, indexId, keySchema, isUnique);
 }
 
 void SystemInfoManager::dropIndex(uint16_t tableId, string name) {
     uint16_t indexId = indexNames.at(make_pair(tableId, name));
 
-    DataFile indexesFile(pageManager, -3, indexesSchema.getSize());
-    DataFile indexColumnsFile(pageManager, -4, indexColumnsSchema.getSize());
+    DataFile indexesFile(trMan, -3, indexesSchema.getSize());
+    DataFile indexColumnsFile(trMan, -4, indexColumnsSchema.getSize());
 
     vector<uint16_t> indexIds;
     for (auto i = indexesFile.begin(); i != indexesFile.end(); i++) {
@@ -294,7 +294,7 @@ void SystemInfoManager::dropIndex(uint16_t tableId, string name) {
             indexColumnsFile.deleteRecord(i.getRecordId());
     }
 
-    IndexFile::deleteFile(pageManager, tableId, indexId);
+    IndexFile::deleteFile(trMan, tableId, indexId);
 
     indexNames.erase(make_pair(tableId, name));
     indexes.erase(make_pair(tableId, indexId));

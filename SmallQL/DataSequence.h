@@ -209,7 +209,7 @@ private:
     BlobManager& blobManager;
     vector<IndexFile> indexFiles;
 public:
-    Inserter(PageManager& pageManager, const SystemInfoManager& sysMan, BlobManager& blobManager, uint16_t tableId);
+    Inserter(TransactionManager& trMan, const SystemInfoManager& sysMan, BlobManager& blobManager, uint16_t tableId);
     bool insert(RecordPtr record);
     int insert(DataSequence* source);
 };
@@ -217,12 +217,12 @@ public:
 class Deleter {
 private:
     vector<pair<RecordId, ValueArray>> data;
-    PageManager& pageManager;
+    TransactionManager& trMan;
     const SystemInfoManager& sysMan;
     BlobManager& blobManager;
     uint16_t tableId;
 public:
-    Deleter(PageManager& pageManager, const SystemInfoManager& sysMan, BlobManager& blobManager, uint16_t tableId);
+    Deleter(TransactionManager& trMan, const SystemInfoManager& sysMan, BlobManager& blobManager, uint16_t tableId);
     void prepareAll(DataSequence* source);
     int deleteAll();
 };
@@ -230,7 +230,7 @@ public:
 class Updater {
 private:
     vector<pair<RecordId, ValueArray>> data;
-    PageManager& pageManager;
+    TransactionManager& trMan;
     const SystemInfoManager& sysMan;
     BlobManager& blobManager;
     uint16_t tableId;
@@ -238,7 +238,7 @@ private:
     set<uint16_t> affectedIndexes;
     bool affectsVarData;
 public:
-    Updater(PageManager& pageManager, 
+    Updater(TransactionManager& trMan, 
         const SystemInfoManager& sysMan, 
         BlobManager& blobManager, 
         uint16_t tableId,

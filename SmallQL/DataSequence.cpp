@@ -505,15 +505,15 @@ vector<ValueArray> selectData(DataSequence* source) {
     return result;
 }
 
-Inserter::Inserter(PageManager& pageManager, const SystemInfoManager& sysMan, BlobManager& blobManager, uint16_t tableId) 
-    : dataFile(pageManager, sysMan, tableId)
+Inserter::Inserter(TransactionManager& trMan, const SystemInfoManager& sysMan, BlobManager& blobManager, uint16_t tableId) 
+    : dataFile(trMan, sysMan, tableId)
     , schema(sysMan.getTableSchema(tableId))
     , blobManager(blobManager)
 {
     const auto& indexes = sysMan.getTableInfo(tableId).indexes;
     for (uint16_t indexId : indexes) {
         const auto& indexInfo = sysMan.getIndexInfo(tableId, indexId);
-        indexFiles.emplace_back(pageManager, tableId, indexId, indexInfo.schema, indexInfo.isUnique);
+        indexFiles.emplace_back(trMan, tableId, indexId, indexInfo.schema, indexInfo.isUnique);
     }
 }
 
@@ -558,8 +558,8 @@ int Inserter::insert(DataSequence* source) {
 }
 
 
-Deleter::Deleter(PageManager& pageManager, const SystemInfoManager& sysMan, BlobManager& blobManager, uint16_t tableId)
-    : sysMan(sysMan), tableId(tableId), blobManager(blobManager), pageManager(pageManager) {}
+Deleter::Deleter(TransactionManager& trMan, const SystemInfoManager& sysMan, BlobManager& blobManager, uint16_t tableId)
+    : sysMan(sysMan), tableId(tableId), blobManager(blobManager), trMan(trMan) {}
 
 void Deleter::prepareAll(DataSequence* source) {
     source->reset();
@@ -570,13 +570,13 @@ void Deleter::prepareAll(DataSequence* source) {
 }
 
 int Deleter::deleteAll() {
-    DataFile dataFile(pageManager, sysMan, tableId);
+    DataFile dataFile(trMan, sysMan, tableId);
     vector<IndexFile> indexFiles;
     const Schema& schema = sysMan.getTableSchema(tableId);
     const auto& indexes = sysMan.getTableInfo(tableId).indexes;
     for (uint16_t indexId : indexes) {
         const auto& indexInfo = sysMan.getIndexInfo(tableId, indexId);
-        indexFiles.emplace_back(pageManager, tableId, indexId, indexInfo.schema, indexInfo.isUnique);
+        indexFiles.emplace_back(trMan, tableId, indexId, indexInfo.schema, indexInfo.isUnique);
     }
 
     int count = 0;
@@ -598,7 +598,7 @@ int Deleter::deleteAll() {
     return count;
 }
 
-Updater::Updater(PageManager& pageManager, 
+Updater::Updater(TransactionManager& trMan, 
         const SystemInfoManager& sysMan, 
         BlobManager& blobManager, 
         uint16_t tableId,
@@ -608,7 +608,7 @@ Updater::Updater(PageManager& pageManager,
     : sysMan(sysMan)
     , tableId(tableId)
     , blobManager(blobManager)
-    , pageManager(pageManager)
+    , trMan(trMan)
     , setData(move(setData))
     , affectedIndexes (affectedIndexes)
     , affectsVarData(affectsVarData) {}
@@ -622,12 +622,12 @@ void Updater::prepareAll(DataSequence* source) {
 }
 
 int Updater::updateAll() {
-    DataFile dataFile(pageManager, sysMan, tableId);
+    DataFile dataFile(trMan, sysMan, tableId);
     vector<IndexFile> indexFiles;
     const Schema& schema = sysMan.getTableSchema(tableId);
     for (uint16_t indexId : affectedIndexes) {
         const auto& indexInfo = sysMan.getIndexInfo(tableId, indexId);
-        indexFiles.emplace_back(pageManager, tableId, indexId, indexInfo.schema, indexInfo.isUnique);
+        indexFiles.emplace_back(trMan, tableId, indexId, indexInfo.schema, indexInfo.isUnique);
     }
 
     vector<ValueArray> newData;

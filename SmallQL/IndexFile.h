@@ -1,5 +1,5 @@
 #pragma once
-#include "PageManager.h"
+#include "TransactionManager.h"
 #include "DataType.h"
 #include "Common.h"
 #include "SystemInfoManager.h"
@@ -34,9 +34,9 @@ public:
     uint16_t cellsPerInternalPage;
     bool isUnique;
 
-    IndexFile(PageManager& pageManager, int tableId, int indexId, const Schema& keySchema, bool isUnique);
-    IndexFile(PageManager& pageManager, const SystemInfoManager& sysMan, string tableName, string indexName = "primary");
-    static void deleteFile(PageManager& pageManager, int tableId, int indexId);
+    IndexFile(TransactionManager& trMan, int tableId, int indexId, const Schema& keySchema, bool isUnique);
+    IndexFile(TransactionManager& trMan, const SystemInfoManager& sysMan, string tableName, string indexName = "primary");
+    static void deleteFile(TransactionManager& trMan, int tableId, int indexId);
 
     NodeId allocateFreePage();
     void deallocatePage(NodeId id);

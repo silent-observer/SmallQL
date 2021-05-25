@@ -25,7 +25,7 @@ public:
         uint16_t cellHeader, uint16_t fclStartOffset)
         : index(index)
         , id(id)
-        , page(index.retrieve(id))
+        , page(index.retrieveWrite(id))
         , cellSize(keySize + cellHeader)
         , cellHeader(cellHeader)
         , cellPtrOffset(cellPtrOffset)
@@ -570,7 +570,7 @@ public:
     NodeId findRightmostNode() {
         NodeId currentId = rightPtr();
         while (true) {
-            Page page = index.retrieve(currentId);
+            Page page = index.retrieveRead(currentId);
             if (page[0] == 0x01) { // Internal
                 InternalNode n(index, currentId, keySize);
                 currentId = n.rightPtr();
@@ -918,7 +918,7 @@ bool InternalNode::deleteFromNode(const char* key, RecordId record) {
         pair<bool, SlotId> p = binarySearch(key, record);
         if (p.first) {
             NodeId childId = p.second == cellCount() ? rightPtr() : getCellLeftPtr(p.second);
-            Page childPage = index.retrieve(childId);
+            Page childPage = index.retrieveRead(childId);
             NodeId rightmostId = childId;
             bool isChildEmpty;
             if (childPage[0] == 0x01) { // Internal
@@ -954,8 +954,8 @@ bool InternalNode::deleteFromNode(const char* key, RecordId record) {
         }
         else {
             NodeId childId = p.second == cellCount() ? rightPtr() : getCellLeftPtr(p.second);
-            Page childPage = index.retrieve(childId);
-            if (page[0] == 0x01) { // Internal
+            Page childPage = index.retrieveRead(childId);
+            if (childPage[0] == 0x01) { // Internal
                 InternalNode n(index, childId, keySize);
                 return n.deleteFromNode(key, record);
             }

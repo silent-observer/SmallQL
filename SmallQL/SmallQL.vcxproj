@@ -161,6 +161,7 @@
     <ClCompile Include="SqlLexer.cpp" />
     <ClCompile Include="SqlParser.cpp" />
     <ClCompile Include="SystemInfoManager.cpp" />
+    <ClCompile Include="TransactionManager.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="BlobManager.h" />
@@ -182,6 +183,7 @@
     <ClInclude Include="SqlAst.h" />
     <ClInclude Include="SqlParser.h" />
     <ClInclude Include="SystemInfoManager.h" />
+    <ClInclude Include="TransactionManager.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
