@@ -145,6 +145,7 @@ private:
     unique_ptr<CreateIndexNode> parseCreateIndex(bool isUnique);
     unique_ptr<DropIndexNode> parseDropIndex();
     unique_ptr<ShowNode> parseShow();
+    unique_ptr<TransactionOpNode> parseTransactionOp();
 
     inline void check(TokenType type, string errorCause);
     inline void checkKeyword(string keyword, string errorCause);

@@ -86,8 +86,11 @@ int main()
                 success = result.first;
             }
 
-            if (!success)
+            if (!success) {
                 trMan.rollback();
+                sysMan.autoCommitMode = true;
+                cout << "Changes rolled back!" << endl;
+            }
             else if (sysMan.autoCommitMode)
                 trMan.commit();
         }

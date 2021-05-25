@@ -253,3 +253,22 @@ void ShowNode::prettyPrint(ostream& s, int level) const {
         s << " FROM " << fromWhere;
     s << endl;
 }
+
+void TransactionOpNode::prettyPrint(ostream& s, int level) const {
+    s << indent();
+    switch (operation)
+    {
+    case TransactionOpNode::BeginTransaction:
+        s << "BEGIN TRANSACTION";
+        break;
+    case TransactionOpNode::Commit:
+        s << "COMMIT";
+        break;
+    case TransactionOpNode::Rollback:
+        s << "ROLLBACK";
+        break;
+    default:
+        break;
+    }
+    s << endl;
+}

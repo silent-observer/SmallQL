@@ -116,6 +116,26 @@ static void executeShow(const ShowNode* n, SystemInfoManager& sysMan) {
     }
 }
 
+static void executeTransactionOp(const TransactionOpNode* n, TransactionManager& trMan, SystemInfoManager& sysMan) {
+    switch (n->operation) {
+    case TransactionOpNode::BeginTransaction:
+        trMan.commit();
+        sysMan.autoCommitMode = false;
+        cout << "Started new transaction!" << endl;
+        break;
+    case TransactionOpNode::Commit:
+        trMan.commit();
+        sysMan.autoCommitMode = true;
+        cout << "Commited!" << endl;
+        break;
+    case TransactionOpNode::Rollback:
+        trMan.rollback();
+        sysMan.autoCommitMode = true;
+        cout << "Rolled back!" << endl;
+        break;
+    }
+}
+
 bool tryDDL(const unique_ptr<StatementNode>& n, TransactionManager& trMan, SystemInfoManager& sysMan) {
     if (auto crTab = convert<CreateTableNode>(n)) {
         executeCreateTable(crTab, sysMan);
@@ -135,6 +155,10 @@ bool tryDDL(const unique_ptr<StatementNode>& n, TransactionManager& trMan, Syste
     }
     if (auto show = convert<ShowNode>(n)) {
         executeShow(show, sysMan);
+        return true;
+    }
+    if (auto trOp = convert<TransactionOpNode>(n)) {
+        executeTransactionOp(trOp, trMan, sysMan);
         return true;
     }
     return false;

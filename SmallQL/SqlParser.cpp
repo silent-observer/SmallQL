@@ -43,6 +43,9 @@ unique_ptr<StatementNode> Parser::parse() {
     else if (l.get().text == "SHOW") {
         return parseShow();
     }
+    else if (l.get().text == "BEGIN" || l.get().text == "COMMIT" || l.get().text == "ROLLBACK") {
+        return parseTransactionOp();
+    }
     else
         throw ParserException("Unknown command", l.getPos());
 }
@@ -648,6 +651,27 @@ unique_ptr<ShowNode> Parser::parseShow() {
         l.advance();
         check(TokenType::Id, "Expected table name");
         result->fromWhere = l.pop().text;
+    }
+    check(TokenType::Semicolon, "Expected semicolon");
+    l.advance();
+    return result;
+}
+
+unique_ptr<TransactionOpNode> Parser::parseTransactionOp() {
+    auto result = l.createPtr<TransactionOpNode>();
+    if (l.get().isKeyword("BEGIN")) {
+        l.advance();
+        checkKeyword("TRANSACTION", "Expected TRANSACTION");
+        l.advance();
+        result->operation = TransactionOpNode::BeginTransaction;
+    }
+    else if (l.get().isKeyword("COMMIT")) {
+        l.advance();
+        result->operation = TransactionOpNode::Commit;
+    }
+    else if (l.get().isKeyword("ROLLBACK")) {
+        l.advance();
+        result->operation = TransactionOpNode::Rollback;
     }
     check(TokenType::Semicolon, "Expected semicolon");
     l.advance();

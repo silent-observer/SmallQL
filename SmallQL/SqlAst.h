@@ -239,3 +239,14 @@ struct ShowNode : public StatementNode {
     virtual void prettyPrint(ostream& s, int level) const;
     virtual QTablePtr algebrize(const SystemInfoManager& sysMan) { return nullptr; };
 };
+
+struct TransactionOpNode : public StatementNode {
+    enum Operation {
+        BeginTransaction,
+        Commit,
+        Rollback
+    };
+    Operation operation;
+    virtual void prettyPrint(ostream& s, int level) const;
+    virtual QTablePtr algebrize(const SystemInfoManager& sysMan) { return nullptr; };
+};
