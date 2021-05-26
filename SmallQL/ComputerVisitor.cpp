@@ -100,6 +100,97 @@ void ComputerVisitor::visitFuncQNode(FuncQNode& n) {
             result = Value(Datetime(tmData, true, true));
         }
     }
+    else if (n.name == "UCASE") {
+        n.children[0]->accept(this);
+        for (auto& c: result.stringVal) c = toupper(c);
+    }
+    else if (n.name == "LCASE") {
+        n.children[0]->accept(this);
+        for (auto& c: result.stringVal) c = tolower(c);
+    }
+    else if (n.name == "LENGTH") {
+        n.children[0]->accept(this);
+        result = Value(result.stringVal.size());
+    }
+    else if (n.name == "SUBSTR") {
+        n.children[0]->accept(this);
+        string s = result.stringVal;
+        n.children[1]->accept(this);
+        int pos = result.intVal;
+        if (n.children.size() == 2) {
+            result = Value(s.substr(pos));
+        }
+        else {
+            n.children[2]->accept(this);
+            result = Value(s.substr(pos, result.intVal));
+        }
+    }
+    else if (n.name == "ROUND") {
+        n.children[0]->accept(this);
+        result = Value((int)round(result.doubleVal));
+    }
+    else if (n.name == "CEIL") {
+        n.children[0]->accept(this);
+        result = Value((int)ceil(result.doubleVal));
+    }
+    else if (n.name == "FLOOR") {
+        n.children[0]->accept(this);
+        result = Value((int)floor(result.doubleVal));
+    }
+    else if (n.name == "ABS") {
+        n.children[0]->accept(this);
+        if (result.type == ValueType::Double)
+            result.doubleVal = abs(result.doubleVal);
+        else if (result.type == ValueType::Integer)
+            result.intVal = abs(result.intVal);
+    }
+    else if (n.name == "SQRT") {
+        n.children[0]->accept(this);
+        if (result.type == ValueType::Double)
+            result = Value(sqrt(result.doubleVal));
+        else if (result.type == ValueType::Integer)
+            result = Value(sqrt(result.intVal));
+    }
+    else if (n.name == "POW") {
+        n.children[0]->accept(this);
+        double base = result.type == ValueType::Double ? result.doubleVal : result.intVal;
+        n.children[1]->accept(this);
+        double exponent = result.type == ValueType::Double ? result.doubleVal : result.intVal;
+        result = Value(pow(base, exponent));
+    }
+    else if (n.name == "RAND") {
+        result = Value((double)rand() / RAND_MAX);
+    }
+    else if (n.name == "NOW") {
+        time_t now = time(0);
+        tm tmData;
+        localtime_s(&tmData, &now);
+        result = Value(Datetime(tmData, true, true));
+    }
+    else if (n.name == "YEAR") {
+        n.children[0]->accept(this);
+        result = Value(result.datetimeVal.year);
+    }
+    else if (n.name == "MONTH") {
+        n.children[0]->accept(this);
+        result = Value(result.datetimeVal.month);
+    }
+    else if (n.name == "DAY") {
+        n.children[0]->accept(this);
+        result = Value(result.datetimeVal.day);
+    }
+    else if (n.name == "HOUR") {
+        n.children[0]->accept(this);
+        result = Value(result.datetimeVal.hour);
+    }
+    else if (n.name == "MINUTE") {
+        n.children[0]->accept(this);
+        result = Value(result.datetimeVal.minute);
+    }
+    else if (n.name == "SECOND") {
+        n.children[0]->accept(this);
+        result = Value(result.datetimeVal.second);
+    }
 }
 
 void GroupComputerVisitor::visitAggrFuncQNode(AggrFuncQNode& n) {

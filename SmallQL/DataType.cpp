@@ -589,7 +589,7 @@ shared_ptr<DataType> typeCheckFunc(string name, vector<shared_ptr<DataType>> inp
         for (auto& t : inputs)
             if (!is<VarCharType>(t) && !is<TextType>(t))
                 throw TypeException("Invalid type in CONCAT expression");
-        return make_shared<IntType>();
+        return inputs[0];
     }
     else if (name == "TO_DATETIME") {
         if (inputs.size() == 0 || inputs.size() > 2)
@@ -598,6 +598,77 @@ shared_ptr<DataType> typeCheckFunc(string name, vector<shared_ptr<DataType>> inp
             if (!is<VarCharType>(t) && !is<TextType>(t))
                 throw TypeException("Invalid type in TO_DATETIME expression");
         return make_shared<DatetimeType>();
+    }
+    else if (name == "UCASE" || name == "LCASE") {
+        if (inputs.size() != 1)
+            throw TypeException(name + " uses only 1 argument");
+        if (!is<VarCharType>(inputs[0]) && !is<TextType>(inputs[0]))
+            throw TypeException(name + " uses 1 string argument");
+        return inputs[0];
+    }
+    else if (name == "LENGTH") {
+        if (inputs.size() != 1)
+            throw TypeException(name + " uses only 1 argument");
+        if (!is<VarCharType>(inputs[0]) && !is<TextType>(inputs[0]))
+            throw TypeException(name + " uses 1 string argument");
+        return make_shared<IntType>();
+    }
+    else if (name == "SUBSTR") {
+        if (inputs.size() != 2 && inputs.size() != 3)
+            throw TypeException(name + " supports only 2 or 3 arguments");
+        if (!is<VarCharType>(inputs[0]) && !is<TextType>(inputs[0]))
+            throw TypeException("First argument of SUBSTR must be a string");
+        if (!is<IntType>(inputs[1]) && !is<ShortIntType>(inputs[1]) && !is<ByteType>(inputs[1]))
+            throw TypeException("Second argument of SUBSTR must be an integer");
+        if (inputs.size() == 3 && !is<IntType>(inputs[2]) && !is<ShortIntType>(inputs[2]) && !is<ByteType>(inputs[2]))
+            throw TypeException("Third argument of SUBSTR must be an integer");
+        return inputs[0];
+    }
+    else if (name == "ROUND" || name == "CEIL" || name == "FLOOR") {
+        if (inputs.size() != 1)
+            throw TypeException(name + " uses only 1 argument");
+        if (!is<DoubleType>(inputs[0]))
+            throw TypeException("The argument of " + name + " must be a double");
+        return make_shared<IntType>();
+    }
+    else if (name == "ABS") {
+        if (inputs.size() != 1)
+            throw TypeException(name + " uses only 1 argument");
+        if (!is<DoubleType>(inputs[0]) && !is<IntType>(inputs[0]) && !is<ShortIntType>(inputs[0]) && !is<ByteType>(inputs[0]))
+            throw TypeException("The argument of " + name + " must be a number");
+        return inputs[0];
+    }
+    else if (name == "SQRT") {
+        if (inputs.size() != 1)
+            throw TypeException(name + " uses only 1 argument");
+        if (!is<DoubleType>(inputs[0]) && !is<IntType>(inputs[0]) && !is<ShortIntType>(inputs[0]) && !is<ByteType>(inputs[0]))
+            throw TypeException("The argument of " + name + " must be a number");
+        return make_shared<DoubleType>();
+    }
+    else if (name == "POW") {
+        if (inputs.size() != 2)
+            throw TypeException(name + " uses 2 arguments");
+        for (auto& t : inputs)
+            if (!is<DoubleType>(t) && !is<IntType>(t) && !is<ShortIntType>(t) && !is<ByteType>(t))
+                throw TypeException("The arguments of " + name + " must be numbers");
+        return make_shared<DoubleType>();
+    }
+    else if (name == "RAND") {
+        if (inputs.size() != 0)
+            throw TypeException(name + " takes no arguments");
+        return make_shared<DoubleType>();
+    }
+    else if (name == "NOW") {
+        if (inputs.size() != 0)
+            throw TypeException(name + " takes no arguments");
+        return make_shared<DatetimeType>();
+    }
+    else if (name == "YEAR" || name == "MONTH" || name == "DAY" || name == "HOUR" || name == "MINUTE" || name == "SECOND") {
+        if (inputs.size() != 1)
+            throw TypeException(name + " takes 1 argument");
+        if (!is<DatetimeType>(inputs[0]))
+            throw TypeException("The argument of " + name + " must be a datetime");
+        return make_shared<IntType>();
     }
     return nullptr;
 }

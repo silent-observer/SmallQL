@@ -38,6 +38,9 @@ const Schema indexColumnsSchema(
 );
 
 void SystemInfoManager::load() {
+    tableNames["DUAL"] = 0xFFFF;
+    tables[0xFFFF] = TableInfo{0xFFFF, "DUAL", Schema(), Schema(), set<uint16_t>()};
+
     DataFile tablesFile(trMan, -1, tablesSchema.getSize());
     DataFile columnsFile(trMan, -2, columnsSchema.getSize());
     DataFile indexesFile(trMan, -3, indexesSchema.getSize());

@@ -94,7 +94,9 @@ const static set<string> TYPE_SET = {
 };
 
 const static set<string> FUNCTION_NAME_SET = {
-    "CONCAT", "TO_DATETIME"
+    "CONCAT", "TO_DATETIME", "UCASE", "LCASE", "LENGTH", "SUBSTR", 
+    "ROUND", "ABS", "CEIL", "FLOOR", "POW", "RAND", "SQRT", 
+    "NOW", "YEAR", "MONTH", "DAY", "HOUR", "MINUTE", "SECOND"
 };
 
 const static set<string> AGGR_FUNCTION_NAME_SET = {

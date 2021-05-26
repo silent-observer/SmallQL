@@ -365,13 +365,15 @@ unique_ptr<FuncExpr> Parser::parseFuncExpr() {
 
     check(TokenType::LParen, "Expected left parenthesis");
     l.advance();
-    bool isFirst = true;
-    do {
-        if (!isFirst)
-            l.advance();
-        result->children.push_back(parseExpr());
-        isFirst = false;
-    } while (l.get().type == TokenType::Comma);
+    if (l.get().type != TokenType::RParen) {
+        bool isFirst = true;
+        do {
+            if (!isFirst)
+                l.advance();
+            result->children.push_back(parseExpr());
+            isFirst = false;
+        } while (l.get().type == TokenType::Comma);
+    }
     check(TokenType::RParen, "Expected right parenthesis");
     l.advance();
 
