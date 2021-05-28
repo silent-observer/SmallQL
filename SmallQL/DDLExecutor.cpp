@@ -47,6 +47,7 @@ static void executeCreateIndex(const CreateIndexNode* n, TransactionManager& trM
     else {
         cout << "Index " << n->name << " couldn't be created since there are repeating keys in the table " << n->tableName << "!" << endl;
         sysMan.dropIndex(tableId, n->name);
+        trMan.rollback();
     }
 }
 

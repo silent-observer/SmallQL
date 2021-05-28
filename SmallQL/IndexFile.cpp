@@ -1,4 +1,4 @@
-#define CHECKS_ENABLED
+//#define CHECKS_ENABLED
 #include "IndexFilePrivate.h"
 #include "DataType.h"
 #include <iostream>
