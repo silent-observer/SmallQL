@@ -438,24 +438,28 @@ SorterDS::SorterDS(const IntermediateType& type,
     , cmpPlan(cmpPlan)
     , index(0)
     , values()
+    , hasBeenReset(false)
     , DataSequence(type) {
     record.type = this->source->getType();
 }
 void SorterDS::reset() {
-    source->reset();
-    while (!source->hasEnded()) {
-        values.push_back(*source->get().record);
-        source->advance();
-    }
-    sort(values.begin(), values.end(), [&](const ValueArray& a, const ValueArray& b) {
-        for (const auto& p : cmpPlan) {
-            const auto& entry = record.type.entries[p.first];
-            int r = entry.compare(a[p.first], b[p.first]);
-            if (r == 0) continue;
-            return (r < 0) != p.second;
+    if (!hasBeenReset) {
+        hasBeenReset = true;
+        source->reset();
+        while (!source->hasEnded()) {
+            values.push_back(*source->get().record);
+            source->advance();
         }
-        return false;
-    });
+        sort(values.begin(), values.end(), [&](const ValueArray& a, const ValueArray& b) {
+            for (const auto& p : cmpPlan) {
+                const auto& entry = record.type.entries[p.first];
+                int r = entry.compare(a[p.first], b[p.first]);
+                if (r == 0) continue;
+                return (r < 0) != p.second;
+            }
+            return false;
+        });
+    }
     index = 0;
     if (values.size() != 0)
         record.record = &values[0];

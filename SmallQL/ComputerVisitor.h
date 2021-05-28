@@ -25,9 +25,12 @@ private:
     const vector<ValueArray>* group;
 public:
     GroupComputerVisitor(const IntermediateType& type, const vector<ValueArray>* group)
-        : group(group), ComputerVisitor(type, nullptr) {}
+        : group(group), ComputerVisitor(type, group->size() == 0? nullptr : &(*group)[0]) {}
     inline const Value& getResult() const {
         return result;
+    }
+    inline void updateRecord() {
+        record = group->size() == 0? nullptr : &(*group)[0];
     }
     virtual void visitAggrFuncQNode(AggrFuncQNode& n);
 };

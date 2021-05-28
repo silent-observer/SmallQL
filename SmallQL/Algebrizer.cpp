@@ -327,6 +327,10 @@ QTablePtr TableSubquery::algebrize(const SystemInfoManager& sysMan) {
             entry.tableName = alias;
         }
     }
+    for (auto& entry : result->type.entries) {
+        entry.isAggregate = false;
+        entry.isConst = false;
+     }
     return result;
 }
 

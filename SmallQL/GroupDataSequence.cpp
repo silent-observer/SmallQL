@@ -12,6 +12,7 @@ GroupifierDS::GroupifierDS(const IntermediateType& type, vector<bool> isGrouped,
 void GroupifierDS::reset() {
     source->reset();
     data->clear();
+    ended = false;
     update();
 }
 void GroupifierDS::advance() {
@@ -102,6 +103,8 @@ void AggregatorDS::update() {
     data->clear();
     for (int i = 0; i < source->get().record->size(); i++)
         data->push_back((*source->get().record)[i]);
+    visitor->updateRecord();
+
     ValueArray results;
     for (int i = 0; i < funcs.size(); i++) {
         funcs[i]->accept(visitor.get());

@@ -180,6 +180,7 @@ private:
     vector<ValueArray> values;
     int index;
     vector<pair<int, bool>> cmpPlan;
+    bool hasBeenReset;
 public:
     SorterDS(const IntermediateType& type, DataSequence* source, vector<pair<int, bool>> cmpPlan);
     virtual void reset();
